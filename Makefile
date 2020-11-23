@@ -4,6 +4,8 @@ WEBPACK := yarn build-acceptance
 # Currently, this is only required to install black via pre-commit.
 REQUIRED_PY3_VERSION := $(shell awk 'FNR == 2' .python-version)
 
+BIG_SUR := $(shell sw_vers -productVersion | egrep "11\.0\.")
+
 bootstrap: develop init-config run-dependent-services create-db apply-migrations build-platform-assets
 
 develop: ensure-pinned-pip setup-git install-js-dev install-py-dev
@@ -48,8 +50,27 @@ apply-migrations: ensure-venv
 
 reset-db: drop-db create-db apply-migrations
 
+# XXX: This only makes sense within Big Sur's if
+ZLIB_PREFIX := $(shell brew --prefix zlib)
 setup-pyenv:
+ifndef $(BIG_SUR) # XXX: I would have expected this to be `ifdef`
+	# XXX - Add zlib to Brewfile (or only install for Big Sur)??
+	# XXX: We should calculate the ZLIB_PREFIX after it is installed not outside the target
+	# brew install zlib
+	# Look into `pkg-config`
+	# NOTE: Once we have a new release of pyenv we can drop the LDFLAGS/CFLAGS
+	# NOTE: Newer versions of Python do not need patching of the source code
+	curl -sSL https://github.com/python/cpython/commit/8ea6353.patch | \
+		LDFLAGS="-L$(ZLIB_PREFIX)/lib" \
+		CFLAGS="-I$(ZLIB_PREFIX)/include" \
+		pyenv install --skip-existing --patch 3.6.10
+	curl -sSL https://github.com/python/cpython/commit/8ea6353.patch | \
+		LDFLAGS="-L$(ZLIB_PREFIX)/lib" \
+		CFLAGS="-I$(ZLIB_PREFIX)/include" \
+		pyenv install --skip-existing --patch 2.7.16
+else
 	@cat .python-version | xargs -n1 pyenv install --skip-existing
+endif
 
 ensure-venv:
 	@./scripts/ensure-venv.sh
