@@ -1,31 +1,31 @@
-import styled from '@emotion/styled';
-import {css} from '@emotion/core';
-import PropTypes from 'prop-types';
 import React from 'react';
+import {css} from '@emotion/core';
+import styled from '@emotion/styled';
 import {AnimatePresence, motion} from 'framer-motion';
+import PlatformIcon from 'platformicons';
+import PropTypes from 'prop-types';
 
-import {analytics} from 'app/utils/analytics';
 import {loadDocs} from 'app/actionCreators/projects';
-import {t, tct} from 'app/locale';
+import {Client} from 'app/api';
 import Alert, {alertStyles} from 'app/components/alert';
 import Button from 'app/components/button';
 import ExternalLink from 'app/components/links/externalLink';
-import FirstEventIndicator from 'app/views/onboarding/projectSetup/firstEventIndicator';
-import {IconInfo} from 'app/icons';
 import LoadingError from 'app/components/loadingError';
 import Panel from 'app/components/panels/panel';
 import PanelBody from 'app/components/panels/panelBody';
-import PlatformIcon from 'app/components/platformIcon';
-import platforms from 'app/data/platforms';
-import space from 'app/styles/space';
-import withApi from 'app/utils/withApi';
-import getDynamicText from 'app/utils/getDynamicText';
-import withOrganization from 'app/utils/withOrganization';
-import testableTransition from 'app/utils/testableTransition';
-import {Organization, Project} from 'app/types';
 import {PlatformKey} from 'app/data/platformCategories';
-import {Client} from 'app/api';
+import platforms from 'app/data/platforms';
+import {IconInfo} from 'app/icons';
+import {t, tct} from 'app/locale';
+import space from 'app/styles/space';
+import {Organization, Project} from 'app/types';
+import {analytics} from 'app/utils/analytics';
+import getDynamicText from 'app/utils/getDynamicText';
+import testableTransition from 'app/utils/testableTransition';
 import {Theme} from 'app/utils/theme';
+import withApi from 'app/utils/withApi';
+import withOrganization from 'app/utils/withOrganization';
+import FirstEventIndicator from 'app/views/onboarding/projectSetup/firstEventIndicator';
 
 import {StepProps} from '../types';
 
@@ -157,7 +157,11 @@ class ProjectDocs extends React.Component<Props, State> {
           </Description>
           <Footer>
             {project && (
-              <FirstEventIndicator organization={organization} project={project} />
+              <FirstEventIndicator
+                organization={organization}
+                project={project}
+                eventType="error"
+              />
             )}
             <div>
               <Button
@@ -265,17 +269,11 @@ const Header = styled('div')`
   font-weight: bold;
 `;
 
-const StyledPlatformIcon = styled(PlatformIcon)`
-  height: 24px;
-  width: 24px;
-  border-radius: 3px;
-`;
-
 const PlatformHeading = ({platform}) => (
   <HeadingContainer>
     <AnimatePresence initial={false}>
       <Heading key={platform}>
-        <StyledPlatformIcon platform={platform} />
+        <PlatformIcon platform={platform} size={24} />
         <Header>
           {t(
             '%s SDK Installation Guide',

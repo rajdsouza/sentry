@@ -1,32 +1,33 @@
 import React from 'react';
-import map from 'lodash/map';
 import styled from '@emotion/styled';
 import * as Sentry from '@sentry/react';
+import map from 'lodash/map';
 
-import {Organization, SentryTransactionEvent} from 'app/types';
 import {Client} from 'app/api';
-import {IconWarning} from 'app/icons';
-import {assert} from 'app/types/utils';
-import {generateEventSlug, eventDetailsRoute} from 'app/utils/discover/urls';
-import {getParams} from 'app/components/organizations/globalSelectionHeader/getParams';
-import {t, tct} from 'app/locale';
 import Alert from 'app/components/alert';
-import DiscoverButton from 'app/components/discoverButton';
 import DateTime from 'app/components/dateTime';
-import EventView from 'app/utils/discover/eventView';
+import DiscoverButton from 'app/components/discoverButton';
 import Link from 'app/components/links/link';
 import LoadingIndicator from 'app/components/loadingIndicator';
+import {getParams} from 'app/components/organizations/globalSelectionHeader/getParams';
 import Pill from 'app/components/pill';
 import Pills from 'app/components/pills';
+import {ALL_ACCESS_PROJECTS} from 'app/constants/globalSelectionHeader';
+import {IconWarning} from 'app/icons';
+import {t, tct} from 'app/locale';
 import space from 'app/styles/space';
-import getDynamicText from 'app/utils/getDynamicText';
+import {Organization, SentryTransactionEvent} from 'app/types';
+import {assert} from 'app/types/utils';
 import {TableDataRow} from 'app/utils/discover/discoverQuery';
+import EventView from 'app/utils/discover/eventView';
+import {eventDetailsRoute, generateEventSlug} from 'app/utils/discover/urls';
+import getDynamicText from 'app/utils/getDynamicText';
 import withApi from 'app/utils/withApi';
 
-import {ProcessedSpanType, RawSpanType, ParsedTraceType, rawSpanKeys} from './types';
-import {isGapSpan, isOrphanSpan, getTraceDateTimeRange} from './utils';
 import * as SpanEntryContext from './context';
 import InlineDocs from './inlineDocs';
+import {ParsedTraceType, ProcessedSpanType, rawSpanKeys, RawSpanType} from './types';
+import {getTraceDateTimeRange, isGapSpan, isOrphanSpan} from './utils';
 
 type TransactionResult = {
   'project.name': string;
@@ -101,15 +102,11 @@ class SpanDetail extends React.Component<Props, State> {
       sort: ['-id'],
       query: `event.type:transaction trace:${traceID} trace.parent_span:${spanID}`,
       project: organization.features.includes('global-views')
-        ? []
+        ? [ALL_ACCESS_PROJECTS]
         : [Number(event.projectID)],
       start,
       end,
     };
-
-    if (query.project.length === 0) {
-      delete query.project;
-    }
 
     return api.requestPromise(url, {
       method: 'GET',
@@ -164,7 +161,9 @@ class SpanDetail extends React.Component<Props, State> {
       ],
       orderby: '-timestamp',
       query: `event.type:transaction trace:${span.trace_id} trace.parent_span:${span.span_id}`,
-      projects: orgFeatures.has('global-views') ? [] : [Number(event.projectID)],
+      projects: orgFeatures.has('global-views')
+        ? [ALL_ACCESS_PROJECTS]
+        : [Number(event.projectID)],
       version: 2,
       start,
       end,
@@ -248,7 +247,9 @@ class SpanDetail extends React.Component<Props, State> {
       ],
       orderby: '-timestamp',
       query: `event.type:transaction trace:${span.trace_id}`,
-      projects: orgFeatures.has('global-views') ? [] : [Number(event.projectID)],
+      projects: orgFeatures.has('global-views')
+        ? [ALL_ACCESS_PROJECTS]
+        : [Number(event.projectID)],
       version: 2,
       start,
       end,
@@ -312,7 +313,9 @@ class SpanDetail extends React.Component<Props, State> {
       fields: ['title', 'project', 'issue', 'timestamp'],
       orderby: '-timestamp',
       query: `event.type:error trace:${span.trace_id} trace.span:${span.span_id}`,
-      projects: orgFeatures.has('global-views') ? [] : [Number(event.projectID)],
+      projects: orgFeatures.has('global-views')
+        ? [ALL_ACCESS_PROJECTS]
+        : [Number(event.projectID)],
       version: 2,
       start,
       end,
@@ -474,12 +477,12 @@ const StyledDiscoverButton = styled(DiscoverButton)`
   right: ${space(0.5)};
 `;
 
-const SpanDetailContainer = styled('div')`
-  border-bottom: 1px solid ${p => p.theme.borderDark};
+export const SpanDetailContainer = styled('div')`
+  border-bottom: 1px solid ${p => p.theme.border};
   cursor: auto;
 `;
 
-const SpanDetails = styled('div')`
+export const SpanDetails = styled('div')`
   padding: ${space(2)};
 `;
 
@@ -494,7 +497,7 @@ const StyledLoadingIndicator = styled(LoadingIndicator)`
   margin: 0;
 `;
 
-const Row = ({
+export const Row = ({
   title,
   keep,
   children,
@@ -522,7 +525,7 @@ const Row = ({
   );
 };
 
-const Tags = ({span}: {span: RawSpanType}) => {
+export const Tags = ({span}: {span: RawSpanType}) => {
   const tags: {[tag_name: string]: string} | undefined = span?.tags;
 
   if (!tags) {

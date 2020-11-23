@@ -14,6 +14,7 @@ __all__ = (
     "AcceptanceTestCase",
     "IntegrationTestCase",
     "SnubaTestCase",
+    "BaseIncidentsTest",
     "IntegrationRepositoryTestCase",
     "ReleaseCommitPatchTest",
     "SetRefsTestCase",
@@ -25,7 +26,9 @@ import os.path
 import pytest
 import requests
 import six
+import time
 import inspect
+from uuid import uuid4
 from contextlib import contextmanager
 from sentry.utils.compat import mock
 
@@ -42,14 +45,17 @@ from django.http import HttpRequest
 from django.test import override_settings, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from django.utils.functional import cached_property
+
 from exam import before, fixture, Exam
-from concurrent.futures import ThreadPoolExecutor
 from sentry.utils.compat.mock import patch
 from pkg_resources import iter_entry_points
 from rest_framework.test import APITestCase as BaseAPITestCase
 from six.moves.urllib.parse import urlencode
 
 from sentry import auth
+from sentry import eventstore
+from sentry.auth.authenticators import TotpInterface
 from sentry.auth.providers.dummy import DummyProvider
 from sentry.auth.superuser import (
     Superuser,
@@ -68,17 +74,16 @@ from sentry.models import (
     Repository,
     DeletedOrganization,
     Organization,
-    TotpInterface,
     Dashboard,
-    ObjectStatus,
-    WidgetDataSource,
-    WidgetDataSourceTypes,
+    DashboardWidgetQuery,
 )
 from sentry.plugins.base import plugins
 from sentry.rules import EventState
 from sentry.tagstore.snuba import SnubaTagStorage
 from sentry.utils import json
 from sentry.utils.auth import SSO_SESSION_KEY
+from sentry.testutils.helpers.datetime import iso_format
+from sentry.utils.retries import TimedRetryPolicy
 
 from .fixtures import Fixtures
 from .factories import Factories
@@ -172,6 +177,7 @@ class BaseTestCase(Fixtures, Exam):
 
     # TODO(dcramer): ideally superuser_sso would be False by default, but that would require
     # a lot of tests changing
+    @TimedRetryPolicy.wrap(timeout=5)
     def login_as(
         self, user, organization_id=None, organization_ids=None, superuser=False, superuser_sso=True
     ):
@@ -638,6 +644,7 @@ class IntegrationTestCase(TestCase):
         self.setup_path = reverse(
             "sentry-extension-setup", kwargs={"provider_id": self.provider.key}
         )
+        self.configure_path = u"/extensions/{}/configure/".format(self.provider.key)
 
         self.pipeline.initialize()
         self.save_session()
@@ -655,27 +662,17 @@ class SnubaTestCase(BaseTestCase):
     tests that require snuba.
     """
 
-    init_endpoints = (
-        "/tests/events/drop",
-        "/tests/groupedmessage/drop",
-        "/tests/transactions/drop",
-        "/tests/sessions/drop",
-    )
-
     def setUp(self):
         super(SnubaTestCase, self).setUp()
         self.init_snuba()
 
-    def call_snuba(self, endpoint):
-        return requests.post(settings.SENTRY_SNUBA + endpoint)
+    @pytest.fixture(autouse=True)
+    def initialize(self, reset_snuba, call_snuba):
+        self.call_snuba = call_snuba
 
     def init_snuba(self):
         self.snuba_eventstream = SnubaEventStream()
         self.snuba_tagstore = SnubaTagStorage()
-        assert all(
-            response.status_code == 200
-            for response in ThreadPoolExecutor(4).map(self.call_snuba, self.init_endpoints)
-        )
 
     def store_event(self, *args, **kwargs):
         with mock.patch("sentry.eventstream.insert", self.snuba_eventstream.insert):
@@ -684,6 +681,28 @@ class SnubaTestCase(BaseTestCase):
             if stored_group is not None:
                 self.store_group(stored_group)
             return stored_event
+
+    def wait_for_event_count(self, project_id, total, attempts=2):
+        """
+        Wait until the event count reaches the provided value or until attempts is reached.
+
+        Useful when you're storing several events and need to ensure that snuba/clickhouse
+        state has settled.
+        """
+        # Verify that events have settled in snuba's storage.
+        # While snuba is synchronous, clickhouse isn't entirely synchronous.
+        attempt = 0
+        snuba_filter = eventstore.Filter(project_ids=[project_id])
+        while attempt < attempts:
+            events = eventstore.get_events(snuba_filter)
+            if len(events) >= total:
+                break
+            attempt += 1
+            time.sleep(0.05)
+        if attempt == attempts:
+            assert False, "Could not ensure event was persisted within {} attempt(s)".format(
+                attempt
+            )
 
     def store_session(self, session):
         assert (
@@ -769,6 +788,30 @@ class SnubaTestCase(BaseTestCase):
             ).status_code
             == 200
         )
+
+
+class BaseIncidentsTest(SnubaTestCase):
+    def create_event(self, timestamp, fingerprint=None, user=None):
+        event_id = uuid4().hex
+        if fingerprint is None:
+            fingerprint = event_id
+
+        data = {
+            "event_id": event_id,
+            "fingerprint": [fingerprint],
+            "timestamp": iso_format(timestamp),
+            "type": "error",
+            # This is necessary because event type error should not exist without
+            # an exception being in the payload
+            "exception": [{"type": "Foo"}],
+        }
+        if user:
+            data["user"] = user
+        return self.store_event(data=data, project_id=self.project.id)
+
+    @cached_property
+    def now(self):
+        return timezone.now().replace(minute=0, second=0, microsecond=0)
 
 
 @pytest.mark.snuba
@@ -913,71 +956,46 @@ class OrganizationDashboardWidgetTestCase(APITestCase):
             title="Dashboard 1", created_by=self.user, organization=self.organization
         )
         self.anon_users_query = {
-            "name": "anonymousUsersAffectedQuery",
-            "fields": [],
-            "conditions": [["user.email", "IS NULL", None]],
-            "aggregations": [["count()", None, "Anonymous Users"]],
-            "limit": 1000,
-            "orderby": "-time",
-            "groupby": ["time"],
-            "rollup": 86400,
+            "name": "Anonymous Users",
+            "fields": ["count()"],
+            "conditions": "!has:user.email",
+            "interval": "1d",
         }
         self.known_users_query = {
-            "name": "knownUsersAffectedQuery",
-            "fields": [],
-            "conditions": [["user.email", "IS NOT NULL", None]],
-            "aggregations": [["uniq", "user.email", "Known Users"]],
-            "limit": 1000,
-            "orderby": "-time",
-            "groupby": ["time"],
-            "rollup": 86400,
+            "name": "Known Users",
+            "fields": ["count_unique(user.email)"],
+            "conditions": "has:user.email",
+            "interval": "1d",
         }
-        self.geo_erorrs_query = {
-            "name": "errorsByGeo",
-            "fields": ["geo.country_code"],
-            "conditions": [["geo.country_code", "IS NOT NULL", None]],
-            "aggregations": [["count()", None, "count"]],
-            "limit": 10,
-            "orderby": "-count",
-            "groupby": ["geo.country_code"],
+        self.geo_errors_query = {
+            "name": "Errors by Geo",
+            "fields": ["count()", "geo.country_code"],
+            "conditions": "has:geo.country_code",
+            "interval": "1d",
         }
 
-    def assert_widget_data_sources(self, widget_id, data):
-        result_data_sources = sorted(
-            WidgetDataSource.objects.filter(widget_id=widget_id, status=ObjectStatus.VISIBLE),
-            key=lambda x: x.order,
-        )
-        data.sort(key=lambda x: x["order"])
-        for ds, expected_ds in zip(result_data_sources, data):
+    def assert_widget_queries(self, widget_id, data):
+        result_queries = DashboardWidgetQuery.objects.filter(widget_id=widget_id).order_by("order")
+        for ds, expected_ds in zip(result_queries, data):
             assert ds.name == expected_ds["name"]
-            assert ds.type == WidgetDataSourceTypes.get_id_for_type_name(expected_ds["type"])
-            assert ds.order == expected_ds["order"]
-            assert ds.data == expected_ds["data"]
+            assert ds.fields == expected_ds["fields"]
+            assert ds.conditions == expected_ds["conditions"]
 
-    def assert_widget(
-        self, widget, order, title, display_type, display_options=None, data_sources=None
-    ):
+    def assert_widget(self, widget, order, title, display_type, queries=None):
         assert widget.order == order
         assert widget.display_type == display_type
-        if display_options:
-            assert widget.display_options == display_options
         assert widget.title == title
 
-        if not data_sources:
+        if not queries:
             return
 
-        self.assert_widget_data_sources(widget.id, data_sources)
+        self.assert_widget_queries(widget.id, queries)
 
-    def assert_widget_data(
-        self, data, order, title, display_type, display_options=None, data_sources=None
-    ):
-        assert data["order"] == order
+    def assert_widget_data(self, data, title, display_type, queries=None):
         assert data["displayType"] == display_type
-        if display_options:
-            assert data["displayOptions"] == display_options
         assert data["title"] == title
 
-        if not data_sources:
+        if not queries:
             return
 
-        self.assert_widget_data_sources(data["id"], data_sources)
+        self.assert_widget_queries(data["id"], queries)

@@ -18,7 +18,7 @@ import TextField from 'app/views/settings/components/forms/textField';
 import TextareaField from 'app/views/settings/components/forms/textareaField';
 
 export default {
-  title: 'Forms/Fields',
+  title: 'Core/Forms/Fields',
 };
 
 export const _TextField = withInfo({
@@ -234,6 +234,60 @@ export const SelectFieldMultiple = withInfo({
 
 SelectFieldMultiple.story = {
   name: 'SelectField multiple',
+};
+
+export const SelectFieldGrouped = withInfo({
+  text: 'Select Control w/ Groups',
+  propTablesExclude: [Form],
+})(() => (
+  <Form>
+    <SelectField
+      name="select"
+      label="Grouped Select"
+      options={[
+        {
+          label: 'Group 1',
+          options: [
+            {value: 'choice_one', label: 'Choice One'},
+            {value: 'choice_two', label: 'Choice Two'},
+          ],
+        },
+        {
+          label: 'Group 2',
+          options: [
+            {value: 'choice_three', label: 'Choice Three'},
+            {value: 'choice_four', label: 'Choice Four'},
+          ],
+        },
+      ]}
+    />
+  </Form>
+));
+
+SelectFieldGrouped.story = {
+  name: 'SelectField grouped',
+};
+
+export const SelectFieldInFieldLabel = withInfo({
+  text: 'Select Control w/ Label In Field',
+  propTablesExclude: [Form],
+})(() => (
+  <Form>
+    <SelectField
+      name="select"
+      label="Select With Label In Field"
+      inFieldLabel="Label: "
+      choices={[
+        ['choice_one', 'Choice One'],
+        ['choice_two', 'Choice Two'],
+        ['choice_three', 'Choice Three'],
+      ]}
+    />
+  </Form>
+));
+
+SelectFieldInFieldLabel.story = {
+  name: 'SelectField label in field',
 };
 
 export const NonInlineField = withInfo({

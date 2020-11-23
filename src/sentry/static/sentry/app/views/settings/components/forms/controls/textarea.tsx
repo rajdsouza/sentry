@@ -1,8 +1,8 @@
-import PropTypes from 'prop-types';
 import React from 'react';
 import TextareaAutosize from 'react-autosize-textarea';
-import styled from '@emotion/styled';
 import isPropValid from '@emotion/is-prop-valid';
+import styled from '@emotion/styled';
+import PropTypes from 'prop-types';
 
 import {inputStyles} from 'app/styles/input';
 
@@ -43,6 +43,7 @@ const propFilter = (p: string) =>
 
 const TextArea = styled(TextAreaControl, {shouldForwardProp: propFilter})`
   ${inputStyles};
+  line-height: 1.3em;
 `;
 
 export default TextArea;

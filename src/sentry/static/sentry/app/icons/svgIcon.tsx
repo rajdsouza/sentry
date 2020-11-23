@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import theme, {IconSize, Color} from 'app/utils/theme';
+import theme, {Color, IconSize} from 'app/utils/theme';
 
 type Props = React.SVGAttributes<SVGElement> & {
   color?: Color;
@@ -28,7 +28,7 @@ const SvgIcon = React.forwardRef<SVGSVGElement, Props>(function SvgIcon(
 });
 
 SvgIcon.propTypes = {
-  // @ts-ignore
+  // @ts-expect-error
   color: PropTypes.string,
   size: PropTypes.string,
   viewBox: PropTypes.string,

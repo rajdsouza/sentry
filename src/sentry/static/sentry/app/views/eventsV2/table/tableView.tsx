@@ -1,39 +1,40 @@
 import React from 'react';
-import styled from '@emotion/styled';
 import {browserHistory} from 'react-router';
+import styled from '@emotion/styled';
 import {Location, LocationDescriptorObject} from 'history';
 
-import {Organization, Project} from 'app/types';
-import {trackAnalyticsEvent} from 'app/utils/analytics';
+import {openModal} from 'app/actionCreators/modal';
 import GridEditable, {
-  COL_WIDTH_UNDEFINED,
   COL_WIDTH_MINIMUM,
+  COL_WIDTH_UNDEFINED,
 } from 'app/components/gridEditable';
 import SortLink from 'app/components/gridEditable/sortLink';
-import {IconStack} from 'app/icons';
-import {t} from 'app/locale';
-import {openModal} from 'app/actionCreators/modal';
 import Link from 'app/components/links/link';
 import Tooltip from 'app/components/tooltip';
+import {IconStack} from 'app/icons';
+import {t} from 'app/locale';
+import {Organization, Project} from 'app/types';
+import {trackAnalyticsEvent} from 'app/utils/analytics';
+import {TableData, TableDataRow} from 'app/utils/discover/discoverQuery';
 import EventView, {
   isFieldSortable,
   pickRelevantLocationQueryStrings,
 } from 'app/utils/discover/eventView';
-import {Column} from 'app/utils/discover/fields';
 import {getFieldRenderer} from 'app/utils/discover/fieldRenderers';
-import {TableData, TableDataRow} from 'app/utils/discover/discoverQuery';
-import {generateEventSlug, eventDetailsRouteWithEventView} from 'app/utils/discover/urls';
-import {TOP_N, DisplayModes} from 'app/utils/discover/types';
+import {Column} from 'app/utils/discover/fields';
+import {DisplayModes, TOP_N} from 'app/utils/discover/types';
+import {eventDetailsRouteWithEventView, generateEventSlug} from 'app/utils/discover/urls';
+import {stringifyQueryObject, tokenizeSearch} from 'app/utils/tokenizeSearch';
 import withProjects from 'app/utils/withProjects';
-import {tokenizeSearch, stringifyQueryObject} from 'app/utils/tokenizeSearch';
 import {transactionSummaryRouteWithQuery} from 'app/views/performance/transactionSummary/utils';
 
 import {getExpandedResults, pushEventViewToLocation} from '../utils';
-import ColumnEditModal, {modalCss} from './columnEditModal';
-import {TableColumn} from './types';
-import HeaderCell from './headerCell';
+
 import CellAction, {Actions, updateQuery} from './cellAction';
+import ColumnEditModal, {modalCss} from './columnEditModal';
+import HeaderCell from './headerCell';
 import TableActions from './tableActions';
+import {TableColumn} from './types';
 
 export type TableViewProps = {
   location: Location;
@@ -46,6 +47,7 @@ export type TableViewProps = {
   eventView: EventView;
   tableData: TableData | null | undefined;
   tagKeys: null | string[];
+  measurementKeys: null | string[];
   title: string;
 
   onChangeShowTags: () => void;
@@ -89,10 +91,17 @@ class TableView extends React.Component<TableViewProps> {
     rowIndex?: number
   ): React.ReactNode[] => {
     const {organization, eventView, tableData, location} = this.props;
-    const hasAggregates = eventView.getAggregateFields().length > 0;
+    const hasAggregates = eventView.hasAggregateField();
+    const hasIdField = eventView.hasIdField();
 
     if (isHeader) {
-      if (!hasAggregates) {
+      if (hasAggregates) {
+        return [
+          <PrependHeader key="header-icon">
+            <IconStack size="sm" />
+          </PrependHeader>,
+        ];
+      } else if (!hasIdField) {
         return [
           <PrependHeader key="header-event-id">
             <SortLink
@@ -104,16 +113,27 @@ class TableView extends React.Component<TableViewProps> {
             />
           </PrependHeader>,
         ];
+      } else {
+        return [];
       }
-
-      return [
-        <PrependHeader key="header-icon">
-          <IconStack size="sm" />
-        </PrependHeader>,
-      ];
     }
 
-    if (!hasAggregates) {
+    if (hasAggregates) {
+      const nextView = getExpandedResults(eventView, {}, dataRow);
+
+      const target = {
+        pathname: location.pathname,
+        query: nextView.generateQueryStringObject(),
+      };
+
+      return [
+        <Tooltip key={`eventlink${rowIndex}`} title={t('Open Stack')}>
+          <Link to={target} data-test-id="open-stack">
+            <StyledIcon size="sm" />
+          </Link>
+        </Tooltip>,
+      ];
+    } else if (!hasIdField) {
       let value = dataRow.id;
 
       if (tableData && tableData.meta) {
@@ -136,22 +156,9 @@ class TableView extends React.Component<TableViewProps> {
           </StyledLink>
         </Tooltip>,
       ];
+    } else {
+      return [];
     }
-
-    const nextView = getExpandedResults(eventView, {}, dataRow);
-
-    const target = {
-      pathname: location.pathname,
-      query: nextView.generateQueryStringObject(),
-    };
-
-    return [
-      <Tooltip key={`eventlink${rowIndex}`} title={t('Open Stack')}>
-        <Link to={target} data-test-id="open-stack">
-          <StyledIcon size="sm" />
-        </Link>
-      </Tooltip>,
-    ];
   };
 
   _renderGridHeaderCell = (column: TableColumn<keyof TableDataRow>): React.ReactNode => {
@@ -203,13 +210,35 @@ class TableView extends React.Component<TableViewProps> {
     if (!tableData || !tableData.meta) {
       return dataRow[column.key];
     }
-    const fieldRenderer = getFieldRenderer(String(column.key), tableData.meta);
+
+    const columnKey = String(column.key);
+    const fieldRenderer = getFieldRenderer(columnKey, tableData.meta);
 
     const display = eventView.getDisplayMode();
     const isTopEvents =
       display === DisplayModes.TOP5 || display === DisplayModes.DAILYTOP5;
 
     const count = Math.min(tableData?.data?.length ?? TOP_N, TOP_N);
+
+    let cell = fieldRenderer(dataRow, {organization, location});
+
+    if (columnKey === 'id') {
+      const eventSlug = generateEventSlug(dataRow);
+
+      const target = eventDetailsRouteWithEventView({
+        orgSlug: organization.slug,
+        eventSlug,
+        eventView,
+      });
+
+      cell = (
+        <Tooltip title={t('View Event')}>
+          <StyledLink data-test-id="view-event" to={target}>
+            {cell}
+          </StyledLink>
+        </Tooltip>
+      );
+    }
 
     return (
       <React.Fragment>
@@ -221,14 +250,14 @@ class TableView extends React.Component<TableViewProps> {
           dataRow={dataRow}
           handleCellAction={this.handleCellAction(dataRow, column)}
         >
-          {fieldRenderer(dataRow, {organization, location})}
+          {cell}
         </CellAction>
       </React.Fragment>
     );
   };
 
   handleEditColumns = () => {
-    const {organization, eventView, tagKeys} = this.props;
+    const {organization, eventView, tagKeys, measurementKeys} = this.props;
 
     openModal(
       modalProps => (
@@ -236,6 +265,7 @@ class TableView extends React.Component<TableViewProps> {
           {...modalProps}
           organization={organization}
           tagKeys={tagKeys}
+          measurementKeys={measurementKeys}
           columns={eventView.getColumns().map(col => col.column)}
           onApply={this.handleUpdateColumns}
         />
@@ -368,9 +398,10 @@ class TableView extends React.Component<TableViewProps> {
     const columnOrder = eventView.getColumns();
     const columnSortBy = eventView.getSorts();
 
-    const hasAggregates = eventView.getAggregateFields().length > 0;
-    const prependColumnWidths = hasAggregates
+    const prependColumnWidths = eventView.hasAggregateField()
       ? ['40px']
+      : eventView.hasIdField()
+      ? []
       : [`minmax(${COL_WIDTH_MINIMUM}px, max-content)`];
 
     return (
@@ -396,7 +427,7 @@ class TableView extends React.Component<TableViewProps> {
 }
 
 const PrependHeader = styled('span')`
-  color: ${p => p.theme.gray600};
+  color: ${p => p.theme.subText};
 `;
 
 const StyledLink = styled(Link)`

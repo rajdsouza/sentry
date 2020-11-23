@@ -1,6 +1,6 @@
 import {Client} from 'app/api';
 
-import {SavedIncidentRule, IncidentRule} from './types';
+import {IncidentRule, SavedIncidentRule} from './types';
 
 function isSavedRule(rule: IncidentRule): rule is SavedIncidentRule {
   return !!rule.id;
@@ -20,7 +20,7 @@ export async function addOrUpdateRule(
   projectId: string,
   rule: IncidentRule,
   query?: object | any
-): Promise<unknown[]> {
+) {
   const isExisting = isSavedRule(rule);
   const endpoint = `/projects/${orgId}/${projectId}/alert-rules/${
     isSavedRule(rule) ? `${rule.id}/` : ''
@@ -31,6 +31,7 @@ export async function addOrUpdateRule(
     method,
     data: rule,
     query,
+    includeAllArgs: true,
   });
 }
 

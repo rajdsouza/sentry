@@ -1,20 +1,16 @@
+import React from 'react';
 import {RouteComponentProps} from 'react-router/lib/Router';
 import {Location} from 'history';
-import React from 'react';
 
 import {addErrorMessage} from 'app/actionCreators/indicator';
 import {updateOrganization} from 'app/actionCreators/organizations';
 import AsyncComponent from 'app/components/asyncComponent';
 import AvatarChooser from 'app/components/avatarChooser';
+import organizationSettingsFields from 'app/data/forms/organizationGeneralSettings';
+import {Organization, Scope} from 'app/types';
+import withOrganization from 'app/utils/withOrganization';
 import Form from 'app/views/settings/components/forms/form';
 import JsonForm from 'app/views/settings/components/forms/jsonForm';
-import organizationSettingsFields from 'app/data/forms/organizationGeneralSettings';
-import withOrganization from 'app/utils/withOrganization';
-import Link from 'app/components/links/link';
-import EmptyMessage from 'app/views/settings/components/emptyMessage';
-import {t} from 'app/locale';
-import {Panel, PanelHeader} from 'app/components/panels';
-import {Organization, Scope} from 'app/types';
 
 type Props = {
   location: Location;
@@ -29,7 +25,7 @@ type State = AsyncComponent['state'] & {
 };
 
 class OrganizationSettingsForm extends AsyncComponent<Props, State> {
-  getEndpoints(): Array<[string, string]> {
+  getEndpoints(): ReturnType<AsyncComponent['getEndpoints']> {
     const {organization} = this.props;
     return [['authProvider', `/organizations/${organization.slug}/auth-provider/`]];
   }
@@ -64,19 +60,6 @@ class OrganizationSettingsForm extends AsyncComponent<Props, State> {
         onSubmitError={() => addErrorMessage('Unable to save change')}
       >
         <JsonForm {...jsonFormSettings} forms={organizationSettingsFields} />
-
-        <Panel>
-          <PanelHeader>{t('Security & Privacy')}</PanelHeader>
-          <EmptyMessage
-            title={t('Security & Privacy has moved')}
-            description={
-              <Link to={`/settings/${organization.slug}/security-and-privacy/`}>
-                {t('Go to Security & Privacy')}
-              </Link>
-            }
-          />
-        </Panel>
-
         <AvatarChooser
           type="organization"
           allowGravatar={false}

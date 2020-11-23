@@ -1,15 +1,20 @@
 import React from 'react';
 import styled from '@emotion/styled';
 
-import space from 'app/styles/space';
-import {t} from 'app/locale';
-import Input from 'app/views/settings/components/forms/controls/input';
 import TextOverflow from 'app/components/textOverflow';
+import {t} from 'app/locale';
+import space from 'app/styles/space';
 import {defined} from 'app/utils';
+import InputField from 'app/views/settings/components/forms/inputField';
 
-import {unarySuggestions, binarySuggestions} from '../../utils';
-import SourceSuggestionExamples from './sourceSuggestionExamples';
 import {SourceSuggestion, SourceSuggestionType} from '../../types';
+import {binarySuggestions, unarySuggestions} from '../../utils';
+
+import SourceSuggestionExamples from './sourceSuggestionExamples';
+
+const defaultHelp = t(
+  'Where to look. In the simplest case this can be an attribute name.'
+);
 
 type Props = {
   value: string;
@@ -17,7 +22,7 @@ type Props = {
   isRegExMatchesSelected: boolean;
   suggestions: Array<SourceSuggestion>;
   error?: string;
-  onBlur?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onBlur?: (value: string, event: React.FocusEvent<HTMLInputElement>) => void;
 };
 
 type State = {
@@ -26,7 +31,7 @@ type State = {
   activeSuggestion: number;
   showSuggestions: boolean;
   hideCaret: boolean;
-  help?: string;
+  help: string;
 };
 
 class SourceField extends React.Component<Props, State> {
@@ -36,6 +41,7 @@ class SourceField extends React.Component<Props, State> {
     activeSuggestion: 0,
     showSuggestions: false,
     hideCaret: false,
+    help: defaultHelp,
   };
 
   componentDidMount() {
@@ -235,7 +241,9 @@ class SourceField extends React.Component<Props, State> {
     for (const index in fieldValues) {
       const fieldValue = fieldValues[index];
       if (Array.isArray(fieldValue)) {
-        newValue.push(`${fieldValue[0].value}${fieldValue[1].value}`);
+        if (fieldValue[0]?.value || fieldValue[1]?.value) {
+          newValue.push(`${fieldValue[0]?.value ?? ''}${fieldValue[1]?.value ?? ''}`);
+        }
         continue;
       }
       newValue.push(fieldValue.value);
@@ -263,7 +271,7 @@ class SourceField extends React.Component<Props, State> {
       fieldValues[fieldValues.length - 1] = [lastFieldValue, suggestion];
     }
 
-    if (lastFieldValue?.type === 'string') {
+    if (lastFieldValue?.type === 'string' && !lastFieldValue?.value) {
       fieldValues[fieldValues.length - 1] = suggestion;
     }
 
@@ -286,7 +294,7 @@ class SourceField extends React.Component<Props, State> {
     if (help) {
       if (!isMaybeRegExp) {
         this.setState({
-          help: '',
+          help: defaultHelp,
         });
       }
       return;
@@ -303,10 +311,9 @@ class SourceField extends React.Component<Props, State> {
     this.setState({showSuggestions});
   }
 
-  handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = event.target.value;
-    this.loadFieldValues(newValue);
-    this.props.onChange(newValue);
+  handleChange = (value: string) => {
+    this.loadFieldValues(value);
+    this.props.onChange(value);
   };
 
   handleClickOutside = () => {
@@ -329,7 +336,7 @@ class SourceField extends React.Component<Props, State> {
     );
   };
 
-  handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  handleKeyDown = (_value: string, event: React.KeyboardEvent<HTMLInputElement>) => {
     event.persist();
 
     const {keyCode} = event;
@@ -377,21 +384,32 @@ class SourceField extends React.Component<Props, State> {
     return (
       <Wrapper ref={this.selectorField} hideCaret={hideCaret}>
         <StyledInput
+          data-test-id="source-field"
           type="text"
+          label={t('Source')}
           name="source"
           placeholder={t('Enter a custom attribute, variable or header name')}
           onChange={this.handleChange}
           autoComplete="off"
           value={value}
-          onKeyDown={this.handleKeyDown}
           error={error}
-          help={error ? undefined : help}
+          help={help}
+          onKeyDown={this.handleKeyDown}
           onBlur={onBlur}
           onFocus={this.handleFocus}
+          inline={false}
+          flexibleControlStateSize
+          stacked
+          required
+          showHelpInTooltip
         />
         {showSuggestions && suggestions.length > 0 && (
           <React.Fragment>
-            <Suggestions ref={this.suggestionList} data-test-id="source-suggestions">
+            <Suggestions
+              ref={this.suggestionList}
+              error={error}
+              data-test-id="source-suggestions"
+            >
               {suggestions.slice(0, 50).map((suggestion, index) => (
                 <Suggestion
                   key={suggestion.value}
@@ -430,25 +448,25 @@ const Wrapper = styled('div')<{hideCaret?: boolean}>`
   ${p => p.hideCaret && `caret-color: transparent;`}
 `;
 
-const StyledInput = styled(Input)`
+const StyledInput = styled(InputField)`
   z-index: 1002;
   :focus {
     outline: none;
   }
 `;
 
-const Suggestions = styled('ul')`
+const Suggestions = styled('ul')<{error?: string}>`
   position: absolute;
-  width: 100%;
+  width: ${p => (p.error ? 'calc(100% - 34px)' : '100%')};
   padding-left: 0;
   list-style: none;
   margin-bottom: 0;
   box-shadow: 0 2px 0 rgba(37, 11, 54, 0.04);
-  border: 1px solid ${p => p.theme.borderDark};
+  border: 1px solid ${p => p.theme.border};
   border-radius: 0 0 ${space(0.5)} ${space(0.5)};
-  background: ${p => p.theme.white};
-  top: 35px;
-  right: 0;
+  background: ${p => p.theme.background};
+  top: 63px;
+  left: 0;
   z-index: 1002;
   overflow: hidden;
   max-height: 200px;
@@ -459,20 +477,21 @@ const Suggestion = styled('li')<{active: boolean}>`
   display: grid;
   grid-template-columns: auto 1fr max-content;
   grid-gap: ${space(1)};
-  border-bottom: 1px solid ${p => p.theme.borderLight};
+  border-bottom: 1px solid ${p => p.theme.border};
   padding: ${space(1)} ${space(2)};
   font-size: ${p => p.theme.fontSizeMedium};
   cursor: pointer;
-  background: ${p => (p.active ? p.theme.gray200 : p.theme.white)};
+  background: ${p => (p.active ? p.theme.backgroundSecondary : p.theme.background)};
   :hover {
-    background: ${p => (p.active ? p.theme.gray200 : p.theme.gray100)};
+    background: ${p =>
+      p.active ? p.theme.backgroundSecondary : p.theme.backgroundSecondary};
   }
 `;
 
 const SuggestionDescription = styled('div')`
   display: flex;
   overflow: hidden;
-  color: ${p => p.theme.gray500};
+  color: ${p => p.theme.gray300};
 `;
 
 const SuggestionsOverlay = styled('div')`

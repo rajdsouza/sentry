@@ -1,30 +1,35 @@
 import React from 'react';
-import styled from '@emotion/styled';
 import {css} from '@emotion/core';
+import styled from '@emotion/styled';
 
-import FormField from 'app/views/settings/components/forms/formField';
-import {t, tct} from 'app/locale';
-import {QueryField} from 'app/views/eventsV2/table/queryField';
-import {generateFieldOptions} from 'app/views/eventsV2/utils';
-import {FieldValueKind} from 'app/views/eventsV2/table/types';
-import {Organization} from 'app/types';
-import space from 'app/styles/space';
-import FormModel from 'app/views/settings/components/forms/model';
 import Button from 'app/components/button';
 import Tooltip from 'app/components/tooltip';
+import {t, tct} from 'app/locale';
+import space from 'app/styles/space';
+import {Organization} from 'app/types';
 import {
-  explodeFieldString,
-  generateFieldAsString,
   AGGREGATIONS,
+  explodeFieldString,
   FIELDS,
+  generateFieldAsString,
 } from 'app/utils/discover/fields';
+import {QueryField} from 'app/views/eventsV2/table/queryField';
+import {FieldValueKind} from 'app/views/eventsV2/table/types';
+import {generateFieldOptions} from 'app/views/eventsV2/utils';
+import FormField from 'app/views/settings/components/forms/formField';
+import FormModel from 'app/views/settings/components/forms/model';
 
 import {errorFieldConfig, transactionFieldConfig} from './constants';
-import {Dataset} from './types';
 import {PRESET_AGGREGATES} from './presets';
+import {Dataset} from './types';
 
-type Props = Omit<FormField['props'], 'children' | 'help'> & {
+type Props = Omit<FormField['props'], 'children'> & {
   organization: Organization;
+  /**
+   * Optionally set a width for each column of selector
+   */
+  columnWidth?: number;
+  inFieldLabels?: boolean;
 };
 
 const getFieldOptionConfig = (dataset: Dataset) => {
@@ -33,6 +38,7 @@ const getFieldOptionConfig = (dataset: Dataset) => {
   const aggregations = Object.fromEntries(
     config.aggregations.map(key => [key, AGGREGATIONS[key]])
   );
+
   const fields = Object.fromEntries(
     config.fields.map(key => {
       // XXX(epurkhiser): Temporary hack while we handle the translation of user ->
@@ -45,7 +51,9 @@ const getFieldOptionConfig = (dataset: Dataset) => {
     })
   );
 
-  return {aggregations, fields};
+  const {measurementKeys} = config;
+
+  return {aggregations, fields, measurementKeys};
 };
 
 const help = ({name, model}: {name: string; model: FormModel}) => {
@@ -76,9 +84,9 @@ const help = ({name, model}: {name: string; model: FormModel}) => {
   );
 };
 
-const MetricField = ({organization, ...props}: Props) => (
+const MetricField = ({organization, columnWidth, inFieldLabels, ...props}: Props) => (
   <FormField help={help} {...props}>
-    {({onChange, value, model}) => {
+    {({onChange, value, model, disabled}) => {
       const dataset = model.getValue('dataset');
 
       const fieldOptionsConfig = getFieldOptionConfig(dataset);
@@ -91,28 +99,43 @@ const MetricField = ({organization, ...props}: Props) => (
           : '';
 
       const selectedField = fieldOptions[fieldKey]?.value;
-      const numParameters =
-        selectedField &&
-        selectedField.kind === FieldValueKind.FUNCTION &&
-        selectedField.meta.parameters.length;
+      const numParameters: number =
+        selectedField?.kind === FieldValueKind.FUNCTION
+          ? selectedField.meta.parameters.length
+          : 0;
 
       return (
         <React.Fragment>
-          <AggregateHeader>
-            <div>{t('Function')}</div>
-            {numParameters > 0 && <div>{t('Parameter')}</div>}
-          </AggregateHeader>
-          <QueryField
+          {!inFieldLabels && (
+            <AggregateHeader>
+              <div>{t('Function')}</div>
+              {numParameters > 0 && <div>{t('Parameter')}</div>}
+              {numParameters > 1 && <div>{t('Value')}</div>}
+            </AggregateHeader>
+          )}
+          <StyledQueryField
             filterPrimaryOptions={option => option.value.kind === FieldValueKind.FUNCTION}
             fieldOptions={fieldOptions}
             fieldValue={fieldValue}
             onChange={v => onChange(generateFieldAsString(v), {})}
+            columnWidth={columnWidth}
+            gridColumns={numParameters}
+            inFieldLabels={inFieldLabels}
+            disabled={disabled}
           />
         </React.Fragment>
       );
     }}
   </FormField>
 );
+
+const StyledQueryField = styled(QueryField)<{gridColumns: number; columnWidth?: number}>`
+  ${p =>
+    p.columnWidth &&
+    css`
+      width: ${(p.gridColumns + 1) * p.columnWidth}px;
+    `}
+`;
 
 const AggregateHeader = styled('div')`
   display: grid;
@@ -121,7 +144,7 @@ const AggregateHeader = styled('div')`
   grid-gap: ${space(1)};
   text-transform: uppercase;
   font-size: ${p => p.theme.fontSizeSmall};
-  color: ${p => p.theme.gray500};
+  color: ${p => p.theme.gray300};
   font-weight: bold;
   margin-bottom: ${space(1)};
 `;
@@ -130,10 +153,10 @@ const PresetButton = styled(Button)<{disabled: boolean}>`
   ${p =>
     p.disabled &&
     css`
-      color: ${p.theme.gray700};
+      color: ${p.theme.textColor};
       &:hover,
       &:focus {
-        color: ${p.theme.gray800};
+        color: ${p.theme.textColor};
       }
     `}
 `;

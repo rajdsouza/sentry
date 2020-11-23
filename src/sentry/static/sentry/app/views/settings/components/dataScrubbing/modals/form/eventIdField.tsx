@@ -2,14 +2,15 @@ import React from 'react';
 import styled from '@emotion/styled';
 import isEqual from 'lodash/isEqual';
 
-import Input from 'app/views/settings/components/forms/controls/input';
 import {t} from 'app/locale';
 import space from 'app/styles/space';
+import Input from 'app/views/settings/components/forms/controls/input';
 import Field from 'app/views/settings/components/forms/field';
 
-import EventIdFieldStatusIcon from './eventIdFieldStatusIcon';
-import {EventIdStatus, EventId} from '../../types';
+import {EventId, EventIdStatus} from '../../types';
 import {saveToSourceGroupData} from '../utils';
+
+import EventIdFieldStatusIcon from './eventIdFieldStatusIcon';
 
 type Props = {
   onUpdateEventId: (eventId: string) => void;
@@ -144,11 +145,11 @@ class EventIdField extends React.Component<Props, State> {
 }
 export default EventIdField;
 
-const StyledInput = styled(Input)<{showStatus: boolean}>`
+const StyledInput = styled(Input)`
   flex: 1;
   font-weight: 400;
   input {
-    padding-right: ${p => (p.showStatus ? space(4) : space(1.5))};
+    padding-right: ${space(1.5)};
   }
   margin-bottom: 0;
 `;

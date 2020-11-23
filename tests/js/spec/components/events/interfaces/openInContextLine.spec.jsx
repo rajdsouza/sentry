@@ -2,10 +2,10 @@ import React from 'react';
 
 import {mountWithTheme} from 'sentry-test/enzyme';
 
-import {addQueryParamsToExistingUrl} from 'app/utils/queryString';
 import {OpenInContextLine} from 'app/components/events/interfaces/openInContextLine';
+import {addQueryParamsToExistingUrl} from 'app/utils/queryString';
 
-describe('OpenInContextLine', function() {
+describe('OpenInContextLine', function () {
   const filename = '/sentry/app.py';
   const group = TestStubs.Group();
   const install = TestStubs.SentryAppInstallation();
@@ -43,8 +43,8 @@ describe('OpenInContextLine', function() {
 
   const lineNo = 233;
 
-  describe('with stacktrace-link component', function() {
-    it('renders multiple buttons', function() {
+  describe('with stacktrace-link component', function () {
+    it('renders multiple buttons', function () {
       const wrapper = mountWithTheme(
         <OpenInContextLine filename={filename} lineNo={lineNo} components={components} />,
         TestStubs.routerContext()

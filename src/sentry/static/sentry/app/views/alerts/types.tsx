@@ -1,5 +1,5 @@
+import {Repository, User} from 'app/types';
 import {IncidentRule} from 'app/views/settings/incidentRules/types';
-import {User, Repository} from 'app/types';
 
 type Data = [number, {count: number}[]][];
 
@@ -52,11 +52,6 @@ export type ActivityType = ActivityTypeDraft & {
   eventStats?: {data: Data};
   previousValue: string | null;
   value: string | null;
-};
-
-export type NoteType = {
-  text: string;
-  mentions: [string, string][];
 };
 
 export enum IncidentType {

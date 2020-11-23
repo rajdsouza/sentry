@@ -1,18 +1,18 @@
+import {Query} from 'history';
 import chunk from 'lodash/chunk';
 import debounce from 'lodash/debounce';
-import {Query} from 'history';
 
-import {Client} from 'app/api';
-import {PlatformKey} from 'app/data/platformCategories';
-import {Project, Team} from 'app/types';
 import {
-  addLoadingMessage,
   addErrorMessage,
+  addLoadingMessage,
   addSuccessMessage,
 } from 'app/actionCreators/indicator';
-import {t, tct} from 'app/locale';
 import ProjectActions from 'app/actions/projectActions';
+import {Client} from 'app/api';
+import {PlatformKey} from 'app/data/platformCategories';
+import {t, tct} from 'app/locale';
 import ProjectsStatsStore from 'app/stores/projectsStatsStore';
+import {Project, Team} from 'app/types';
 
 type UpdateParams = {
   orgId: string;
@@ -42,7 +42,9 @@ export function update(api: Client, params: UpdateParams) {
     );
 }
 
-export function loadStats(api: Client, params: UpdateParams) {
+type StatsParams = Pick<UpdateParams, 'orgId' | 'data' | 'query'>;
+
+export function loadStats(api: Client, params: StatsParams) {
   ProjectActions.loadStats(params.orgId, params.data);
 
   const endpoint = `/organizations/${params.orgId}/stats/`;
@@ -65,20 +67,28 @@ const _projectStatsToFetch: Set<string> = new Set();
 // it can timeout
 const MAX_PROJECTS_TO_FETCH = 10;
 
-const _queryForStats = (api: Client, projects: string[], orgId: string) => {
+const _queryForStats = (
+  api: Client,
+  projects: string[],
+  orgId: string,
+  additionalQuery: Query | undefined
+) => {
   const idQueryParams = projects.map(project => `id:${project}`).join(' ');
   const endpoint = `/organizations/${orgId}/projects/`;
 
+  const query: Query = {
+    statsPeriod: '24h',
+    query: idQueryParams,
+    ...additionalQuery,
+  };
+
   return api.requestPromise(endpoint, {
-    query: {
-      statsPeriod: '24h',
-      query: idQueryParams,
-    },
+    query,
   });
 };
 
 export const _debouncedLoadStats = debounce(
-  (api: Client, projectSet: Set<string>, params) => {
+  (api: Client, projectSet: Set<string>, params: UpdateParams) => {
     const storedProjects: {[key: string]: Project} = ProjectsStatsStore.getAll();
     const existingProjectStats = Object.values(storedProjects).map(({id}) => id);
     const projects = Array.from(projectSet).filter(
@@ -93,7 +103,7 @@ export const _debouncedLoadStats = debounce(
     // Split projects into more manageable chunks to query, otherwise we can
     // potentially face server timeouts
     const queries = chunk(projects, MAX_PROJECTS_TO_FETCH).map(chunkedProjects =>
-      _queryForStats(api, chunkedProjects, params.orgId)
+      _queryForStats(api, chunkedProjects, params.orgId, params.query)
     );
 
     Promise.all(queries)

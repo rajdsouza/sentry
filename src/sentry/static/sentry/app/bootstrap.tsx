@@ -2,32 +2,30 @@ import 'bootstrap/js/alert';
 import 'bootstrap/js/tab';
 import 'bootstrap/js/dropdown';
 import 'focus-visible';
-
 import 'app/utils/statics-setup';
 
-import PropTypes from 'prop-types';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import Reflux from 'reflux';
 import * as Router from 'react-router';
+import {ExtraErrorData} from '@sentry/integrations';
+import * as Sentry from '@sentry/react';
 import SentryRRWeb from '@sentry/rrweb';
+import {Integrations} from '@sentry/tracing';
 import createReactClass from 'create-react-class';
 import jQuery from 'jquery';
 import moment from 'moment';
-import {Integrations} from '@sentry/tracing';
-import {ExtraErrorData} from '@sentry/integrations';
-import * as Sentry from '@sentry/react';
+import PropTypes from 'prop-types';
+import Reflux from 'reflux';
 
-import {NODE_ENV, DISABLE_RR_WEB, SPA_DSN} from 'app/constants';
-import {metric} from 'app/utils/analytics';
-import {init as initApiSentryClient} from 'app/utils/apiSentryClient';
-import ConfigStore from 'app/stores/configStore';
+import {DISABLE_RR_WEB, NODE_ENV, SPA_DSN} from 'app/constants';
 import Main from 'app/main';
-import ajaxCsrfSetup from 'app/utils/ajaxCsrfSetup';
 import plugins from 'app/plugins';
 import routes from 'app/routes';
-
-import {setupFavicon} from './favicon';
+import ConfigStore from 'app/stores/configStore';
+import ajaxCsrfSetup from 'app/utils/ajaxCsrfSetup';
+import {metric} from 'app/utils/analytics';
+import {init as initApiSentryClient} from 'app/utils/apiSentryClient';
+import {setupColorScheme} from 'app/utils/matchMedia';
 
 if (NODE_ENV === 'development') {
   import(
@@ -57,10 +55,11 @@ function getSentryIntegrations(hasReplays: boolean = false) {
     }),
     new Integrations.BrowserTracing({
       routingInstrumentation: Sentry.reactRouterV3Instrumentation(
-        Router.browserHistory,
+        Router.browserHistory as any,
         Router.createRoutes(routes()),
-        Router.match
+        Router.match as any
       ),
+      idleTimeout: 5000,
     }),
   ];
   if (hasReplays) {
@@ -94,6 +93,7 @@ Sentry.init({
     : window.__SENTRY__OPTIONS.whitelistUrls,
   integrations: getSentryIntegrations(hasReplays),
   tracesSampleRate,
+  autoSessionTracking: true,
 });
 
 if (window.__SENTRY__USER) {
@@ -132,9 +132,8 @@ const render = (Component: React.ComponentType) => {
   }
 };
 
-if (NODE_ENV === 'production') {
-  setupFavicon();
-}
+// setup darkmode + favicon
+setupColorScheme();
 
 // The password strength component is very heavyweight as it includes the
 // zxcvbn, a relatively byte-heavy password strength estimation library. Load

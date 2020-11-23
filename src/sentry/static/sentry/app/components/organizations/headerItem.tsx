@@ -1,14 +1,14 @@
-import {Link} from 'react-router';
 import React from 'react';
-import PropTypes from 'prop-types';
+import {Link} from 'react-router';
 import isPropValid from '@emotion/is-prop-valid';
 import styled from '@emotion/styled';
 import omit from 'lodash/omit';
+import PropTypes from 'prop-types';
 
-import {IconClose, IconLock, IconChevron, IconInfo, IconSettings} from 'app/icons';
 import Tooltip from 'app/components/tooltip';
-import space from 'app/styles/space';
+import {IconChevron, IconClose, IconInfo, IconLock, IconSettings} from 'app/icons';
 import overflowEllipsis from 'app/styles/overflowEllipsis';
+import space from 'app/styles/space';
 
 type DefaultProps = {
   allowClear: boolean;
@@ -16,17 +16,17 @@ type DefaultProps = {
 
 type Props = {
   icon: React.ReactElement;
-  lockedMessage: React.ReactNode;
-  settingsLink: string;
-  hint?: string;
   hasChanges: boolean;
   hasSelected: boolean;
   isOpen: boolean;
   locked: boolean;
   loading: boolean;
+  hint?: string;
+  settingsLink?: string;
+  lockedMessage?: React.ReactNode;
   forwardRef?: React.Ref<HTMLDivElement>;
-  onClear: () => void;
-} & DefaultProps &
+  onClear?: () => void;
+} & Partial<DefaultProps> &
   React.HTMLAttributes<HTMLDivElement>;
 
 class HeaderItem extends React.Component<Props> {
@@ -48,7 +48,7 @@ class HeaderItem extends React.Component<Props> {
 
   handleClear = e => {
     e.stopPropagation();
-    this.props.onClear();
+    this.props.onClear?.();
   };
 
   render() {
@@ -101,14 +101,14 @@ class HeaderItem extends React.Component<Props> {
           <StyledChevron isOpen={isOpen}>
             <IconChevron
               direction="down"
-              color={isOpen ? 'gray700' : 'gray500'}
+              color={isOpen ? 'gray500' : 'gray300'}
               size="sm"
             />
           </StyledChevron>
         )}
         {locked && (
           <Tooltip title={lockedMessage || 'This selection is locked'} position="bottom">
-            <StyledLock color="gray500" />
+            <StyledLock color="gray300" />
           </Tooltip>
         )}
       </StyledHeaderItem>
@@ -119,9 +119,9 @@ class HeaderItem extends React.Component<Props> {
 // Infer props here because of styled/theme
 const getColor = p => {
   if (p.locked) {
-    return p.theme.gray500;
+    return p.theme.gray300;
   }
-  return p.isOpen || p.hasSelected ? p.theme.gray700 : p.theme.gray500;
+  return p.isOpen || p.hasSelected ? p.theme.textColor : p.theme.gray300;
 };
 
 type ColorProps = {
@@ -187,7 +187,7 @@ const StyledChevron = styled('div')<StyledChevronProps>`
 `;
 
 const SettingsIconLink = styled(Link)`
-  color: ${p => p.theme.gray500};
+  color: ${p => p.theme.gray300};
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -195,7 +195,7 @@ const SettingsIconLink = styled(Link)`
   transition: 0.5s opacity ease-out;
 
   &:hover {
-    color: ${p => p.theme.gray700};
+    color: ${p => p.theme.textColor};
   }
 `;
 

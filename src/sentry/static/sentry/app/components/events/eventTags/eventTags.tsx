@@ -1,15 +1,14 @@
 import React from 'react';
-import isEmpty from 'lodash/isEmpty';
-import {Location} from 'history';
 import styled from '@emotion/styled';
+import {Location} from 'history';
+import isEmpty from 'lodash/isEmpty';
 
-import {Event} from 'app/types';
 import EventDataSection from 'app/components/events/eventDataSection';
-import {generateQueryWithTag} from 'app/utils';
-import {t} from 'app/locale';
 import Pills from 'app/components/pills';
-import {getMeta} from 'app/components/events/meta/metaProxy';
+import {t} from 'app/locale';
 import space from 'app/styles/space';
+import {Event} from 'app/types';
+import {defined, generateQueryWithTag} from 'app/utils';
 
 import EventTagsPill from './eventTagsPill';
 
@@ -38,9 +37,9 @@ const EventTags = ({
   return (
     <StyledEventDataSection title={t('Tags')} type="tags">
       <Pills>
-        {tags.map(tag => (
+        {tags.map((tag, index) => (
           <EventTagsPill
-            key={tag.key}
+            key={!defined(tag.key) ? `tag-pill-${index}` : tag.key}
             tag={tag}
             projectId={projectId}
             orgId={orgId}
@@ -48,7 +47,6 @@ const EventTags = ({
             query={generateQueryWithTag(location.query, tag)}
             streamPath={streamPath}
             releasesPath={releasesPath}
-            meta={getMeta(tag, 'value')}
             hasQueryFeature={hasQueryFeature}
           />
         ))}

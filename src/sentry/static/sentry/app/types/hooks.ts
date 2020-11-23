@@ -1,11 +1,11 @@
 import {Route} from 'react-router';
 
-import {NavigationSection} from 'app/views/settings/types';
-import {User, Organization, Project, IntegrationProvider} from 'app/types';
-import {ExperimentKey} from 'app/types/experiments';
 import FeatureDisabled from 'app/components/acl/featureDisabled';
 import SidebarItem from 'app/components/sidebar/sidebarItem';
+import {IntegrationProvider, Organization, Project, User} from 'app/types';
+import {ExperimentKey} from 'app/types/experiments';
 import {StepProps} from 'app/views/onboarding/types';
+import {NavigationSection} from 'app/views/settings/types';
 
 // XXX(epurkhiser): A Note about `_`.
 //
@@ -93,6 +93,7 @@ export type FeatureDisabledHooks = {
   'feature-disabled:events-sidebar-item': FeatureDisabledHook;
   'feature-disabled:grid-editable-actions': FeatureDisabledHook;
   'feature-disabled:incidents-sidebar-item': FeatureDisabledHook;
+  'feature-disabled:performance-new-project': FeatureDisabledHook;
   'feature-disabled:performance-page': FeatureDisabledHook;
   'feature-disabled:performance-sidebar-item': FeatureDisabledHook;
   'feature-disabled:project-selector-checkbox': FeatureDisabledHook;
@@ -112,6 +113,7 @@ export type InterfaceChromeHooks = {
   'sidebar:organization-dropdown-menu': GenericOrganizationComponentHook;
   'sidebar:bottom-items': SidebarBottomItemsHook;
   'sidebar:item-label': SidebarItemLabelHook;
+  'help-modal:footer': HelpModalFooterHook;
 };
 
 /**
@@ -129,7 +131,6 @@ export type OnboardingHooks = {
 export type SettingsHooks = {
   'settings:organization-navigation': OrganizationSettingsHook;
   'settings:organization-navigation-config': SettingsConfigHook;
-  'settings:organization-general-settings': GeneralSettingsHook;
 };
 
 /**
@@ -276,11 +277,6 @@ type OrganizationSettingsHook = (organization: Organization) => React.ReactEleme
 type SettingsConfigHook = (organization: Organization) => NavigationSection;
 
 /**
- * Provides additional general setting components
- */
-type GeneralSettingsHook = () => React.ReactElement;
-
-/**
  * Each sidebar label is wrapped with this hook, to allow sidebar item
  * augmentation.
  */
@@ -307,6 +303,14 @@ type SidebarProps = Pick<
 type SidebarBottomItemsHook = (
   opts: SidebarProps & {organization: Organization}
 ) => React.ReactNode;
+
+/**
+ * Provides augmentation of the help modal footer
+ */
+type HelpModalFooterHook = (opts: {
+  closeModal: () => void;
+  organization: Organization;
+}) => React.ReactNode;
 
 /**
  * Wrapper component to allow for customization of the onboarding member

@@ -1,9 +1,10 @@
 import 'echarts/lib/component/tooltip';
+
 import {EChartOption} from 'echarts';
 import moment from 'moment';
 
-import {getFormattedDate, getTimeFormat} from 'app/utils/dates';
 import BaseChart from 'app/components/charts/baseChart';
+import {getFormattedDate, getTimeFormat} from 'app/utils/dates';
 
 import {truncationFormatter} from '../utils';
 
@@ -249,8 +250,8 @@ export default function Tooltip({
 
       // If the tooltip would leave viewport on the right, pin it.
       // and adjust the arrow position.
-      if (rightEdge >= window.innerWidth - 30) {
-        leftPos -= rightEdge - window.innerWidth + 30;
+      if (rightEdge >= window.innerWidth - 20) {
+        leftPos -= rightEdge - window.innerWidth + 20;
         arrowPosition = `${Number(pos[0]) - leftPos}px`;
       }
 

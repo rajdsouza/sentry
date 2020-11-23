@@ -1,15 +1,15 @@
 import React from 'react';
 import styled from '@emotion/styled';
-import PropTypes from 'prop-types';
 import * as Sentry from '@sentry/react';
+import PropTypes from 'prop-types';
 
-import {Organization, Project} from 'app/types';
-import {t} from 'app/locale';
-import {trackAnalyticsEvent, trackAdhocEvent} from 'app/utils/analytics';
 import Button from 'app/components/button';
 import EmptyStateWarning from 'app/components/emptyStateWarning';
+import {t} from 'app/locale';
 import SentryTypes from 'app/sentryTypes';
 import space from 'app/styles/space';
+import {Organization, Project} from 'app/types';
+import {trackAdhocEvent, trackAnalyticsEvent} from 'app/utils/analytics';
 import withOrganization from 'app/utils/withOrganization';
 import withProjects from 'app/utils/withProjects';
 
@@ -31,10 +31,10 @@ class UserFeedbackEmpty extends React.Component<Props> {
   componentDidMount() {
     const {organization, projectIds} = this.props;
 
-    window.sentryEmbedCallback = function(embed) {
+    window.sentryEmbedCallback = function (embed) {
       // Mock the embed's submit xhr to always be successful
       // NOTE: this will not have errors if the form is empty
-      embed.submit = function(_body) {
+      embed.submit = function (_body) {
         this._submitInProgress = true;
         setTimeout(() => {
           this._submitInProgress = false;

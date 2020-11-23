@@ -1,21 +1,23 @@
-import PropTypes from 'prop-types';
 import React from 'react';
-import Reflux from 'reflux';
-import createReactClass from 'create-react-class';
 import styled from '@emotion/styled';
+import createReactClass from 'create-react-class';
+import PropTypes from 'prop-types';
+import Reflux from 'reflux';
 
-import {PanelItem} from 'app/components/panels';
 import {addLoadingMessage, clearIndicators} from 'app/actionCreators/indicator';
+import DropdownLink from 'app/components/dropdownLink';
+import EventOrGroupTitle from 'app/components/eventOrGroupTitle';
+import ErrorLevel from 'app/components/events/errorLevel';
+import SnoozeAction from 'app/components/issues/snoozeAction';
+import Link from 'app/components/links/link';
+import {PanelItem} from 'app/components/panels';
+import GroupChart from 'app/components/stream/groupChart';
 import {IconChat, IconCheckmark, IconEllipsis, IconMute, IconStar} from 'app/icons';
 import {t} from 'app/locale';
-import DropdownLink from 'app/components/dropdownLink';
-import ErrorLevel from 'app/components/events/errorLevel';
-import GroupChart from 'app/components/stream/groupChart';
-import GroupStore from 'app/stores/groupStore';
-import Link from 'app/components/links/link';
 import SentryTypes from 'app/sentryTypes';
-import SnoozeAction from 'app/components/issues/snoozeAction';
+import GroupStore from 'app/stores/groupStore';
 import space from 'app/styles/space';
+import {getMessage} from 'app/utils/events';
 import withApi from 'app/utils/withApi';
 import withOrganization from 'app/utils/withOrganization';
 
@@ -25,46 +27,6 @@ class CompactIssueHeader extends React.Component {
     projectId: PropTypes.string,
     eventId: PropTypes.string,
     data: PropTypes.object.isRequired,
-  };
-
-  getTitle = () => {
-    const data = this.props.data;
-    const metadata = data.metadata;
-    switch (data.type) {
-      case 'error':
-        return (
-          <span>
-            <span style={{marginRight: 10}}>{metadata.type}</span>
-            <em>{data.culprit}</em>
-            <br />
-          </span>
-        );
-      case 'csp':
-        return (
-          <span>
-            <span style={{marginRight: 10}}>{metadata.directive}</span>
-            <em>{metadata.uri}</em>
-            <br />
-          </span>
-        );
-      case 'default':
-        return <span>{metadata.title}</span>;
-      default:
-        return <span>{data.title}</span>;
-    }
-  };
-
-  getMessage = () => {
-    const data = this.props.data;
-    const metadata = data.metadata;
-    switch (data.type) {
-      case 'error':
-        return metadata.value;
-      case 'csp':
-        return metadata.message;
-      default:
-        return '';
-    }
   };
 
   render() {
@@ -78,7 +40,7 @@ class CompactIssueHeader extends React.Component {
 
     const commentColor =
       data.subscriptionDetails && data.subscriptionDetails.reason === 'mentioned'
-        ? 'green400'
+        ? 'green300'
         : 'currentColor';
 
     return (
@@ -89,7 +51,7 @@ class CompactIssueHeader extends React.Component {
             <IconLink to={issueLink || ''}>
               {data.status === 'ignored' && <IconMute size="xs" />}
               {data.isBookmarked && <IconStar isSolid size="xs" />}
-              {this.getTitle()}
+              <EventOrGroupTitle data={data} />
             </IconLink>
           </h3>
         </IssueHeaderMetaWrapper>
@@ -105,7 +67,7 @@ class CompactIssueHeader extends React.Component {
               </IconLink>
             </span>
           )}
-          <span className="culprit">{this.getMessage()}</span>
+          <span className="culprit">{getMessage(data)}</span>
         </div>
       </React.Fragment>
     );

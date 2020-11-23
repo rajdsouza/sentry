@@ -27,7 +27,6 @@ const organizationNavigation: NavigationSection[] = [
           'Configuration related to dealing with sensitive data and other security settings. (Data Scrubbing, Data Privacy, Data Scrubbing)'
         ),
         id: 'security-and-privacy',
-        badge: () => 'new',
       },
       {
         path: `${pathPrefix}/teams/`,
@@ -78,11 +77,11 @@ const organizationNavigation: NavigationSection[] = [
         id: 'rate-limits',
       },
       {
-        path: `${pathPrefix}/relays/`,
-        title: t('Relays'),
-        show: ({access, features}) => features!.has('relay') && access!.has('org:write'),
+        path: `${pathPrefix}/relay/`,
+        title: t('Relay'),
+        show: ({features}) => features!.has('relay'),
         description: t('Manage relays connected to the organization'),
-        id: 'relays',
+        id: 'relay',
         badge: () => 'new',
       },
       {

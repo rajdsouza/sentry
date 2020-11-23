@@ -4,21 +4,22 @@ import styled from '@emotion/styled';
 import {Location} from 'history';
 
 import {Client} from 'app/api';
-import {t} from 'app/locale';
-import {LightWeightOrganization} from 'app/types';
-import EventView from 'app/utils/discover/eventView';
 import ChartZoom from 'app/components/charts/chartZoom';
-import LineChart from 'app/components/charts/lineChart';
 import ErrorPanel from 'app/components/charts/errorPanel';
 import EventsRequest from 'app/components/charts/eventsRequest';
-import QuestionTooltip from 'app/components/questionTooltip';
+import LineChart from 'app/components/charts/lineChart';
 import {SectionHeading} from 'app/components/charts/styles';
-import TransparentLoadingMask from 'app/components/charts/transparentLoadingMask';
 import TransitionChart from 'app/components/charts/transitionChart';
+import TransparentLoadingMask from 'app/components/charts/transparentLoadingMask';
 import {getInterval} from 'app/components/charts/utils';
+import QuestionTooltip from 'app/components/questionTooltip';
 import {IconWarning} from 'app/icons';
-import {getTermHelp} from 'app/views/performance/data';
+import {t} from 'app/locale';
+import space from 'app/styles/space';
+import {LightWeightOrganization} from 'app/types';
 import {getUtcToLocalDateObject} from 'app/utils/dates';
+import {tooltipFormatter} from 'app/utils/discover/charts';
+import EventView from 'app/utils/discover/eventView';
 import {
   formatAbbreviatedNumber,
   formatFloat,
@@ -26,8 +27,8 @@ import {
 } from 'app/utils/formatters';
 import {decodeScalar} from 'app/utils/queryString';
 import theme from 'app/utils/theme';
-import space from 'app/styles/space';
 import withApi from 'app/utils/withApi';
+import {getTermHelp} from 'app/views/performance/data';
 
 type Props = ReactRouter.WithRouterProps & {
   api: Client;
@@ -92,7 +93,7 @@ function SidebarCharts({api, eventView, organization, router}: Props) {
         gridIndex: 0,
         axisLabel: {
           formatter: (value: number) => formatFloat(value, 1),
-          color: theme.gray400,
+          color: theme.chartLabel,
         },
         ...axisLineConfig,
       },
@@ -101,7 +102,7 @@ function SidebarCharts({api, eventView, organization, router}: Props) {
         gridIndex: 1,
         axisLabel: {
           formatter: formatAbbreviatedNumber,
-          color: theme.gray400,
+          color: theme.chartLabel,
         },
         ...axisLineConfig,
       },
@@ -110,7 +111,7 @@ function SidebarCharts({api, eventView, organization, router}: Props) {
         gridIndex: 2,
         axisLabel: {
           formatter: (value: number) => formatPercentage(value, 0),
-          color: theme.gray400,
+          color: theme.chartLabel,
         },
         ...axisLineConfig,
       },
@@ -120,20 +121,10 @@ function SidebarCharts({api, eventView, organization, router}: Props) {
     showTimeInTooltip: true,
     colors: [colors[0], colors[1], colors[2]],
     tooltip: {
+      trigger: 'axis',
       truncate: 80,
-      valueFormatter(value: number, seriesName: string) {
-        if (seriesName.includes('apdex')) {
-          return formatFloat(value, 2);
-        }
-        if (seriesName.includes('failure_rate')) {
-          return formatPercentage(value, 2);
-        }
-        if (typeof value === 'number') {
-          return value.toLocaleString();
-        }
-        return value;
-      },
-      nameFormatter(value) {
+      valueFormatter: tooltipFormatter,
+      nameFormatter(value: string) {
         return value === 'epm()' ? 'tpm()' : value;
       },
     },
@@ -202,7 +193,7 @@ function SidebarCharts({api, eventView, organization, router}: Props) {
               if (errored) {
                 return (
                   <ErrorPanel>
-                    <IconWarning color="gray500" size="lg" />
+                    <IconWarning color="gray300" size="lg" />
                   </ErrorPanel>
                 );
               }
@@ -234,7 +225,7 @@ const RelativeBox = styled('div')`
 `;
 
 const ChartTitle = styled(SectionHeading)<{top: string}>`
-  background: ${p => p.theme.white};
+  background: ${p => p.theme.background};
   position: absolute;
   top: ${p => p.top};
   margin: 0;

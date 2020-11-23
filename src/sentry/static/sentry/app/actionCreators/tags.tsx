@@ -1,16 +1,18 @@
 import {Query} from 'history';
 
-import {t} from 'app/locale';
-import {Client} from 'app/api';
-import {Tag, GlobalSelection} from 'app/types';
-import TagStore from 'app/stores/tagStore';
-import TagActions from 'app/actions/tagActions';
 import AlertActions from 'app/actions/alertActions';
+import TagActions from 'app/actions/tagActions';
+import {Client} from 'app/api';
 import {getParams} from 'app/components/organizations/globalSelectionHeader/getParams';
+import {t} from 'app/locale';
+import TagStore from 'app/stores/tagStore';
+import {GlobalSelection, Tag} from 'app/types';
 
 const MAX_TAGS = 1000;
 
-function tagFetchSuccess(tags: Tag[]) {
+function tagFetchSuccess(tags: Tag[] | undefined) {
+  // We occasionally get undefined passed in when APIs are having a bad time.
+  tags = tags || [];
   const trimmedTags = tags.slice(0, MAX_TAGS);
 
   if (tags.length > MAX_TAGS) {
