@@ -57,7 +57,7 @@ class AwsLambdaWebhookEndpoint(Endpoint):
 
     @transaction_start("AwsLambdaWebhookEndpoint")
     def post(self, request):
-        print(request.body)
+        print("got webhook")
 
         # TODO: differnet way of getting the project id
         project = Project.objects.filter(organization_id=ORG_ID, status=0).first()
@@ -65,21 +65,24 @@ class AwsLambdaWebhookEndpoint(Endpoint):
         endpoint = absolute_uri(
             "/api/%d/store/?sentry_key=%s" % (project.id, project_key.public_key)
         )
-        print("endpoint", endpoint)
 
         for record in request.data["records"]:
             # decode and un-gzip data
             unzipped_data = gunzip(b64decode(record["data"]))
-            print("data", unzipped_data)
             data = json.loads(unzipped_data)
             session = http.build_session()
             contexts = {}
             frames = []
 
+
             if data["messageType"] == "DATA_MESSAGE":
                 if not data["logEvents"][1]:
                     return self.respond(status=200)
 
+                print(json.dumps(data))
+
+                # TODO: Clean up
+                return self.respond(status=200)
                 event = data["logEvents"][1]
                 event_message = [line.strip() for line in event["message"].splitlines()]
                 [message, exception_type] = event_message[0].split(": ", 1)
@@ -90,26 +93,11 @@ class AwsLambdaWebhookEndpoint(Endpoint):
                     if len(formatted) == 3:
                         frames.append(
                             {
-                                "pre_context": [
-                                    "import json",
-                                    "",
-                                    "def lambda_handler(event, context):",
-                                    "    # TODO implement",
-                                ],
-                                "context_line": "    event.helloworldthree",
-                                "post_context": [
-                                    "    return {",
-                                    "        'statusCode': 200,",
-                                    "        'body': json.dumps('Hello from Lambda!')",
-                                    "    }",
-                                ],
                                 "filename": formatted[0].lstrip("File").strip().strip('"'),
                                 "lineno": int(formatted[1].lstrip("line").strip()),
                                 "function": formatted[2].lstrip("in").strip(),
                             }
                         )
-
-                print("frames:", frames)
 
                 if data["logEvents"][3]:
                     report = data["logEvents"][3]
@@ -120,8 +108,6 @@ class AwsLambdaWebhookEndpoint(Endpoint):
                         if len(items) == 2:
                             contexts[items[0]] = items[1]
 
-                print("contexts:", contexts)
-
                 payload = {
                     "event_id": uuid.uuid4().hex,
                     "message": {"message": message},
@@ -129,8 +115,6 @@ class AwsLambdaWebhookEndpoint(Endpoint):
                     "stacktrace": {"frames": frames},
                     "contexts": {"AWS Lambda": contexts},
                 }
-
-                print("payload", payload)
 
                 try:
                     resp = session.post(endpoint, json=payload)

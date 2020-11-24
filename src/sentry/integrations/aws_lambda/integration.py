@@ -93,7 +93,7 @@ class AwsLambdaIntegrationProvider(IntegrationProvider):
         integration = {
             "name": integration_name,
             "external_id": account_id,  # we might want the region as part of the external id
-            "metadata": {"arn": state["arn"],},
+            "metadata": {"arn": state["arn"]},
         }
         return integration
 
@@ -116,11 +116,11 @@ class AwsLambdaPipelineView(PipelineView):
             external_id = request.POST["external_id"]
             pipeline.bind_state("arn", arn)
             pipeline.bind_state("external_id", external_id)
-            print("arn", arn)
             return pipeline.next_step()
 
         template_url = (
-            "https://sentry-cf-stack-template.s3-us-west-2.amazonaws.com/sentryCFStackFilter.json"
+            # "https://sentry-cf-stack-template.s3-us-west-2.amazonaws.com/sentryCFStackFilter.json"
+            "https://cf-templates-1ij5zdkzz541q-us-east-2.s3.us-east-2.amazonaws.com/steve_formation.json"
         )
         external_id = uuid.uuid4()
         # pipeline.bind_state("external_id", external_id)
@@ -143,8 +143,6 @@ class SetupSubscriptionView(PipelineView):
         arn = pipeline.fetch_state("arn")
 
         external_id = pipeline.fetch_state("external_id")
-
-        print("external_id", external_id)
 
         parsed_arn = parse_arn(arn)
         account_id = parsed_arn["account"]
@@ -182,33 +180,35 @@ class SetupSubscriptionView(PipelineView):
         # hacky way to get role
         role_list = iam_client.list_roles(PathPrefix="/")
         role_arn = filter(lambda x: "SentryCWLtoKinesisRole" in x["RoleName"], role_list["Roles"])[0]["Arn"]
-        print("role_arn", role_arn)
 
         lambda_functions = labmda_client.list_functions()
-        print("response", lambda_functions)
 
         for function in lambda_functions["Functions"]:
             name = function["FunctionName"]
+            # are we sure the log group is always this?
             log_group = "/aws/lambda/%s"%(name)
-            sub_filters = log_client.describe_subscription_filters(
-                logGroupName=log_group,
-            )
-            for sub_filter in sub_filters["subscriptionFilters"]:
-                delete_resp = log_client.delete_subscription_filter(
-                    logGroupName=sub_filter["logGroupName"],
-                    filterName=sub_filter["filterName"]
+            try:
+                sub_filters = log_client.describe_subscription_filters(
+                    logGroupName=log_group,
                 )
-                print("delete resp", delete_resp)
+            except Exception as e:
+                print("failed with", name)
+            else:
+                for sub_filter in sub_filters["subscriptionFilters"]:
+                    delete_resp = log_client.delete_subscription_filter(
+                        logGroupName=sub_filter["logGroupName"],
+                        filterName=sub_filter["filterName"]
+                    )
 
-            print("log_group", log_group)
-            destination_arn = 'arn:aws:kinesis:%s:%s:stream/SentryKinesisStream'%(region, account_id)
+                destination_arn = 'arn:aws:kinesis:%s:%s:stream/SentryKinesisStream'%(region, account_id)
 
-            log_client.put_subscription_filter(
-                logGroupName=log_group,
-                filterName='SentryMasterStream',
-                filterPattern='',
-                destinationArn=destination_arn,
-                roleArn=role_arn,
-            )
+                log_client.put_subscription_filter(
+                    logGroupName=log_group,
+                    filterName='SentryMasterStream',
+                    filterPattern='',
+                    destinationArn=destination_arn,
+                    roleArn=role_arn,
+                )
+                print("succeeded with", name)
 
         return pipeline.next_step()
