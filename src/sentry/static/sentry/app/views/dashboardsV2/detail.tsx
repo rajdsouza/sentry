@@ -33,6 +33,7 @@ import {
   DashboardState,
   OrgDashboard,
   OrgDashboardResponse,
+  Widget,
 } from './types';
 import {cloneDashboard} from './utils';
 
@@ -51,6 +52,7 @@ type State = {
   // endpoint response
   orgDashboards: OrgDashboardResponse[] | null;
 } & AsyncComponent['state'];
+
 class DashboardDetail extends AsyncComponent<Props, State> {
   state: State = {
     // AsyncComponent state
@@ -89,41 +91,12 @@ class DashboardDetail extends AsyncComponent<Props, State> {
     });
   };
 
-  onRevert = (dashboard: DashboardListItem) => () => {
-    switch (this.state.dashboardState) {
-      case 'edit': {
-        this.setState({
-          changesDashboard: cloneDashboard(dashboard),
-        });
-        break;
-      }
-      case 'create': {
-        this.setState({
-          changesDashboard: cloneDashboard(EMPTY_DASHBOARD),
-        });
-        break;
-      }
-      default: {
-        // nothing to do
-      }
-    }
+  onCancel = () => {
+    this.setState({
+      dashboardState: 'default',
+      changesDashboard: undefined,
+    });
   };
-
-  isRevertable(dashboard: DashboardListItem) {
-    const {changesDashboard, dashboardState} = this.state;
-
-    switch (dashboardState) {
-      case 'create': {
-        return !isEqual(dashboard, EMPTY_DASHBOARD);
-      }
-      case 'edit': {
-        return !isEqual(dashboard, changesDashboard);
-      }
-      default: {
-        return false;
-      }
-    }
-  }
 
   onDelete = (dashboard: DashboardListItem) => () => {
     const {api, organization} = this.props;
@@ -152,6 +125,11 @@ class DashboardDetail extends AsyncComponent<Props, State> {
 
               // redirect to new dashboard
 
+              this.setState({
+                dashboardState: 'default',
+                changesDashboard: undefined,
+              });
+
               browserHistory.replace({
                 pathname: `/organizations/${organization.slug}/dashboards/${newDashboard.id}/`,
                 query: {},
@@ -166,7 +144,7 @@ class DashboardDetail extends AsyncComponent<Props, State> {
         if (changesDashboard && changesDashboard.type === 'org') {
           // only update the dashboard if there are changes
 
-          if (!this.isRevertable(dashboard)) {
+          if (isEqual(dashboard, changesDashboard)) {
             this.setState({
               dashboardState: 'default',
               changesDashboard: undefined,
@@ -219,6 +197,23 @@ class DashboardDetail extends AsyncComponent<Props, State> {
       };
     });
   }
+
+  onWidgetChange = (widgets: Widget[]) => {
+    const {changesDashboard} = this.state;
+    if (changesDashboard === undefined) {
+      return;
+    }
+
+    this.setState((prevState: State) => {
+      return {
+        ...prevState,
+        changesDashboard: {
+          ...changesDashboard,
+          widgets,
+        },
+      };
+    });
+  };
 
   getDashboardsList(): DashboardListItem[] {
     const {orgDashboards} = this.state;
@@ -299,14 +294,27 @@ class DashboardDetail extends AsyncComponent<Props, State> {
                 dashboard={dashboard}
                 onEdit={this.onEdit(dashboard)}
                 onCreate={this.onCreate}
-                onRevert={this.onRevert(dashboard)}
-                isRevertable={this.isRevertable(dashboard)}
+                onCancel={this.onCancel}
                 onCommit={this.onCommit(dashboard)}
                 onDelete={this.onDelete(dashboard)}
                 dashboardState={this.state.dashboardState}
               />
             </StyledPageHeader>
-            <Dashboard />
+            {this.state.changesDashboard ? (
+              <Dashboard
+                dashboard={this.state.changesDashboard}
+                organization={organization}
+                isEditing={this.state.dashboardState === 'edit'}
+                onUpdate={this.onWidgetChange}
+              />
+            ) : (
+              <Dashboard
+                dashboard={dashboard}
+                organization={organization}
+                isEditing={this.state.dashboardState === 'edit'}
+                onUpdate={this.onWidgetChange}
+              />
+            )}
           </LightWeightNoProjectMessage>
         </PageContent>
       </GlobalSelectionHeader>
