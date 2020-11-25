@@ -39,7 +39,7 @@ type Props = React.HTMLAttributes<HTMLSpanElement> & {
 
 function Tag({type = 'default', icon, to, href, onDismiss, children, ...props}: Props) {
   const iconsProps = {
-    size: '11px',
+    size: '12px',
     color: theme.tag[type].iconColor as Color,
   };
 
@@ -102,7 +102,8 @@ const Background = styled('div')<{type: keyof Theme['tag']}>`
   height: ${TAG_HEIGHT};
   border-radius: ${TAG_HEIGHT};
   background-color: ${p => p.theme.tag[p.type].background};
-  padding: 0 ${space(1)};
+  color: ${p => p.theme.tag[p.type].textColor};
+  padding: 0 ${space(0.75)};
 `;
 
 const IconWrapper = styled('span')`
@@ -118,9 +119,6 @@ const Text = styled('span')`
   white-space: nowrap;
   text-overflow: ellipsis;
   line-height: ${TAG_HEIGHT};
-  a:hover & {
-    color: ${p => p.theme.gray500};
-  }
 `;
 
 const DismissButton = styled(Button)`
