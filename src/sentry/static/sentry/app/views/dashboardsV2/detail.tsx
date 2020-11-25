@@ -1,40 +1,41 @@
 import React from 'react';
-import isEqual from 'lodash/isEqual';
-import {Location} from 'history';
 import {browserHistory} from 'react-router';
 import {Params} from 'react-router/lib/Router';
 import styled from '@emotion/styled';
+import {Location} from 'history';
+import isEqual from 'lodash/isEqual';
 
-import {Organization} from 'app/types';
-import {t} from 'app/locale';
-import withOrganization from 'app/utils/withOrganization';
-import withApi from 'app/utils/withApi';
-import {Client} from 'app/api';
-import SentryDocumentTitle from 'app/components/sentryDocumentTitle';
-import GlobalSelectionHeader from 'app/components/organizations/globalSelectionHeader';
-import {PageContent} from 'app/styles/organization';
-import LightWeightNoProjectMessage from 'app/components/lightWeightNoProjectMessage';
-import space from 'app/styles/space';
-import AsyncComponent from 'app/components/asyncComponent';
-import NotFound from 'app/components/errors/notFound';
 import {
   createDashboard,
-  updateDashboard,
   deleteDashboard,
+  updateDashboard,
 } from 'app/actionCreators/dashboards';
 import {addSuccessMessage} from 'app/actionCreators/indicator';
+import {Client} from 'app/api';
+import AsyncComponent from 'app/components/asyncComponent';
+import NotFound from 'app/components/errors/notFound';
+import LightWeightNoProjectMessage from 'app/components/lightWeightNoProjectMessage';
+import GlobalSelectionHeader from 'app/components/organizations/globalSelectionHeader';
+import SentryDocumentTitle from 'app/components/sentryDocumentTitle';
+import {t} from 'app/locale';
+import {PageContent} from 'app/styles/organization';
+import space from 'app/styles/space';
+import {Organization} from 'app/types';
+import withApi from 'app/utils/withApi';
+import withOrganization from 'app/utils/withOrganization';
 
-import {
-  DashboardListItem,
-  OrgDashboardResponse,
-  OrgDashboard,
-  DashboardState,
-} from './types';
-import {PREBUILT_DASHBOARDS, EMPTY_DASHBOARD} from './data';
-import {cloneDashboard} from './utils';
 import Controls from './controls';
 import Dashboard from './dashboard';
+import {EMPTY_DASHBOARD, PREBUILT_DASHBOARDS} from './data';
 import Title from './title';
+import {
+  DashboardListItem,
+  DashboardState,
+  OrgDashboard,
+  OrgDashboardResponse,
+  Widget,
+} from './types';
+import {cloneDashboard} from './utils';
 
 type Props = {
   api: Client;
@@ -51,6 +52,7 @@ type State = {
   // endpoint response
   orgDashboards: OrgDashboardResponse[] | null;
 } & AsyncComponent['state'];
+
 class DashboardDetail extends AsyncComponent<Props, State> {
   state: State = {
     // AsyncComponent state
@@ -89,41 +91,12 @@ class DashboardDetail extends AsyncComponent<Props, State> {
     });
   };
 
-  onRevert = (dashboard: DashboardListItem) => () => {
-    switch (this.state.dashboardState) {
-      case 'edit': {
-        this.setState({
-          changesDashboard: cloneDashboard(dashboard),
-        });
-        break;
-      }
-      case 'create': {
-        this.setState({
-          changesDashboard: cloneDashboard(EMPTY_DASHBOARD),
-        });
-        break;
-      }
-      default: {
-        // nothing to do
-      }
-    }
+  onCancel = () => {
+    this.setState({
+      dashboardState: 'default',
+      changesDashboard: undefined,
+    });
   };
-
-  isRevertable(dashboard: DashboardListItem) {
-    const {changesDashboard, dashboardState} = this.state;
-
-    switch (dashboardState) {
-      case 'create': {
-        return !isEqual(dashboard, EMPTY_DASHBOARD);
-      }
-      case 'edit': {
-        return !isEqual(dashboard, changesDashboard);
-      }
-      default: {
-        return false;
-      }
-    }
-  }
 
   onDelete = (dashboard: DashboardListItem) => () => {
     const {api, organization} = this.props;
@@ -152,6 +125,11 @@ class DashboardDetail extends AsyncComponent<Props, State> {
 
               // redirect to new dashboard
 
+              this.setState({
+                dashboardState: 'default',
+                changesDashboard: undefined,
+              });
+
               browserHistory.replace({
                 pathname: `/organizations/${organization.slug}/dashboards/${newDashboard.id}/`,
                 query: {},
@@ -166,7 +144,7 @@ class DashboardDetail extends AsyncComponent<Props, State> {
         if (changesDashboard && changesDashboard.type === 'org') {
           // only update the dashboard if there are changes
 
-          if (!this.isRevertable(dashboard)) {
+          if (isEqual(dashboard, changesDashboard)) {
             this.setState({
               dashboardState: 'default',
               changesDashboard: undefined,
@@ -219,6 +197,23 @@ class DashboardDetail extends AsyncComponent<Props, State> {
       };
     });
   }
+
+  onWidgetChange = (widgets: Widget[]) => {
+    const {changesDashboard} = this.state;
+    if (changesDashboard === undefined) {
+      return;
+    }
+
+    this.setState((prevState: State) => {
+      return {
+        ...prevState,
+        changesDashboard: {
+          ...changesDashboard,
+          widgets,
+        },
+      };
+    });
+  };
 
   getDashboardsList(): DashboardListItem[] {
     const {orgDashboards} = this.state;
@@ -299,14 +294,27 @@ class DashboardDetail extends AsyncComponent<Props, State> {
                 dashboard={dashboard}
                 onEdit={this.onEdit(dashboard)}
                 onCreate={this.onCreate}
-                onRevert={this.onRevert(dashboard)}
-                isRevertable={this.isRevertable(dashboard)}
+                onCancel={this.onCancel}
                 onCommit={this.onCommit(dashboard)}
                 onDelete={this.onDelete(dashboard)}
                 dashboardState={this.state.dashboardState}
               />
             </StyledPageHeader>
-            <Dashboard />
+            {this.state.changesDashboard ? (
+              <Dashboard
+                dashboard={this.state.changesDashboard}
+                organization={organization}
+                isEditing={this.state.dashboardState === 'edit'}
+                onUpdate={this.onWidgetChange}
+              />
+            ) : (
+              <Dashboard
+                dashboard={dashboard}
+                organization={organization}
+                isEditing={this.state.dashboardState === 'edit'}
+                onUpdate={this.onWidgetChange}
+              />
+            )}
           </LightWeightNoProjectMessage>
         </PageContent>
       </GlobalSelectionHeader>

@@ -1,13 +1,13 @@
 import React from 'react';
-import styled from '@emotion/styled';
 import {browserHistory} from 'react-router';
+import styled from '@emotion/styled';
 
-import {Organization} from 'app/types';
-import {t} from 'app/locale';
-import {IconAdd, IconEdit} from 'app/icons';
 import Button from 'app/components/button';
 import ButtonBar from 'app/components/buttonBar';
 import SelectControl from 'app/components/forms/selectControl';
+import {IconAdd, IconEdit} from 'app/icons';
+import {t} from 'app/locale';
+import {Organization} from 'app/types';
 
 import {DashboardListItem, DashboardState} from './types';
 
@@ -22,10 +22,9 @@ type Props = {
   dashboard: DashboardListItem;
   onEdit: () => void;
   onCreate: () => void;
-  onRevert: () => void;
+  onCancel: () => void;
   onCommit: () => void;
   onDelete: () => void;
-  isRevertable: boolean;
   dashboardState: DashboardState;
 };
 
@@ -37,25 +36,27 @@ class Controls extends React.Component<Props> {
       dashboard,
       onEdit,
       onCreate,
-      onRevert,
-      isRevertable,
+      onCancel,
       onCommit,
       onDelete,
     } = this.props;
 
+    const cancelButton = (
+      <Button
+        onClick={e => {
+          e.preventDefault();
+          onCancel();
+        }}
+        size="small"
+      >
+        {t('Cancel')}
+      </Button>
+    );
+
     if (dashboardState === 'edit') {
       return (
         <ButtonBar gap={1} key="edit-controls">
-          <Button
-            onClick={e => {
-              e.preventDefault();
-              onRevert();
-            }}
-            size="small"
-            disabled={!isRevertable}
-          >
-            {t('Revert')}
-          </Button>
+          {cancelButton}
           <Button
             onClick={e => {
               e.preventDefault();
@@ -83,15 +84,7 @@ class Controls extends React.Component<Props> {
     if (dashboardState === 'create') {
       return (
         <ButtonBar gap={1} key="create-controls">
-          <Button
-            onClick={e => {
-              e.preventDefault();
-              onRevert();
-            }}
-            size="small"
-          >
-            {t('Revert')}
-          </Button>
+          {cancelButton}
           <Button
             onClick={e => {
               e.preventDefault();

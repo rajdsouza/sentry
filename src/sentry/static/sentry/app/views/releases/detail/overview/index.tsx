@@ -1,43 +1,42 @@
 import React from 'react';
-import {Location, LocationDescriptor, Query} from 'history';
-import {RouteComponentProps} from 'react-router/lib/Router';
-import styled from '@emotion/styled';
 import {browserHistory} from 'react-router';
+import {RouteComponentProps} from 'react-router/lib/Router';
+import {Location, LocationDescriptor, Query} from 'history';
 
-import Feature from 'app/components/acl/feature';
-import space from 'app/styles/space';
-import {t} from 'app/locale';
-import AsyncView from 'app/views/asyncView';
-import withOrganization from 'app/utils/withOrganization';
-import withGlobalSelection from 'app/utils/withGlobalSelection';
-import {NewQuery, Organization, GlobalSelection, ReleaseProject} from 'app/types';
-import {Client} from 'app/api';
-import withApi from 'app/utils/withApi';
-import {getUtcDateString} from 'app/utils/dates';
-import EventView from 'app/utils/discover/eventView';
-import {TrendView, TrendChangeType} from 'app/views/performance/trends/types';
-import {formatVersion} from 'app/utils/formatters';
-import routeTitleGen from 'app/utils/routeTitle';
-import {Body, Main, Side} from 'app/components/layouts/thirds';
 import {restoreRelease} from 'app/actionCreators/release';
+import {Client} from 'app/api';
+import Feature from 'app/components/acl/feature';
 import TransactionsList, {DropdownOption} from 'app/components/discover/transactionsList';
+import {Body, Main, Side} from 'app/components/layouts/thirds';
+import {t} from 'app/locale';
+import {GlobalSelection, NewQuery, Organization, ReleaseProject} from 'app/types';
+import {getUtcDateString} from 'app/utils/dates';
 import {TableDataRow} from 'app/utils/discover/discoverQuery';
-import {transactionSummaryRouteWithQuery} from 'app/views/performance/transactionSummary/utils';
-import {DisplayModes} from 'app/views/performance/transactionSummary/charts';
+import EventView from 'app/utils/discover/eventView';
+import {formatVersion} from 'app/utils/formatters';
 import {decodeScalar} from 'app/utils/queryString';
+import routeTitleGen from 'app/utils/routeTitle';
+import withApi from 'app/utils/withApi';
+import withGlobalSelection from 'app/utils/withGlobalSelection';
+import withOrganization from 'app/utils/withOrganization';
+import AsyncView from 'app/views/asyncView';
+import {DisplayModes} from 'app/views/performance/transactionSummary/charts';
+import {transactionSummaryRouteWithQuery} from 'app/views/performance/transactionSummary/utils';
+import {TrendChangeType, TrendView} from 'app/views/performance/trends/types';
+
+import {isReleaseArchived} from '../../utils';
+import {ReleaseContext} from '..';
 
 import ReleaseChart from './chart/';
-import Issues from './issues';
+import {EventType, YAxis} from './chart/releaseChartControls';
 import CommitAuthorBreakdown from './commitAuthorBreakdown';
-import ProjectReleaseDetails from './projectReleaseDetails';
-import OtherProjects from './otherProjects';
-import TotalCrashFreeUsers from './totalCrashFreeUsers';
 import Deploys from './deploys';
-import ReleaseStatsRequest from './releaseStatsRequest';
+import Issues from './issues';
+import OtherProjects from './otherProjects';
+import ProjectReleaseDetails from './projectReleaseDetails';
 import ReleaseArchivedNotice from './releaseArchivedNotice';
-import {YAxis} from './chart/releaseChartControls';
-import {ReleaseContext} from '..';
-import {isReleaseArchived} from '../../utils';
+import ReleaseStatsRequest from './releaseStatsRequest';
+import TotalCrashFreeUsers from './totalCrashFreeUsers';
 
 type RouteParams = {
   orgId: string;
@@ -62,10 +61,20 @@ class ReleaseOverview extends AsyncView<Props> {
 
   handleYAxisChange = (yAxis: YAxis) => {
     const {location, router} = this.props;
+    const {eventType: _eventType, ...query} = location.query;
 
     router.push({
       ...location,
-      query: {...location.query, yAxis},
+      query: {...query, yAxis},
+    });
+  };
+
+  handleEventTypeChange = (eventType: EventType) => {
+    const {location, router} = this.props;
+
+    router.push({
+      ...location,
+      query: {...location.query, eventType},
     });
   };
 
@@ -88,7 +97,9 @@ class ReleaseOverview extends AsyncView<Props> {
     const {yAxis} = this.props.location.query;
 
     if (typeof yAxis === 'string') {
-      return yAxis as YAxis;
+      if (Object.values(YAxis).includes(yAxis as YAxis)) {
+        return yAxis as YAxis;
+      }
     }
 
     if (hasHealthData) {
@@ -100,6 +111,20 @@ class ReleaseOverview extends AsyncView<Props> {
     }
 
     return YAxis.EVENTS;
+  }
+
+  getEventType(yAxis: YAxis): EventType {
+    if (yAxis === YAxis.EVENTS) {
+      const {eventType} = this.props.location.query;
+
+      if (typeof eventType === 'string') {
+        if (Object.values(EventType).includes(eventType as EventType)) {
+          return eventType as EventType;
+        }
+      }
+    }
+
+    return EventType.ALL;
   }
 
   getReleaseEventView(
@@ -137,6 +162,11 @@ class ReleaseOverview extends AsyncView<Props> {
         return EventView.fromSavedQuery({
           ...baseQuery,
           query: `event.type:transaction release:${version} epm():>0.01`,
+        });
+      case 'failure_count':
+        return EventView.fromSavedQuery({
+          ...baseQuery,
+          query: `event.type:transaction release:${version} failure_count():>0`,
         });
       default:
         return EventView.fromSavedQuery(baseQuery);
@@ -189,6 +219,7 @@ class ReleaseOverview extends AsyncView<Props> {
             organization.features.includes('performance-view') &&
             organization.features.includes('release-performance-views');
           const yAxis = this.getYAxis(hasHealthData, hasPerformance);
+          const eventType = this.getEventType(yAxis);
 
           const {selectedSort, sortOptions} = getTransactionsListSort(location);
           const releaseEventView = this.getReleaseEventView(
@@ -215,12 +246,13 @@ class ReleaseOverview extends AsyncView<Props> {
               selection={selection}
               location={location}
               yAxis={yAxis}
+              eventType={eventType}
               hasHealthData={hasHealthData}
               hasDiscover={hasDiscover}
               hasPerformance={hasPerformance}
             >
               {({crashFreeTimeBreakdown, ...releaseStatsProps}) => (
-                <StyledBody>
+                <Body>
                   <Main>
                     {isReleaseArchived(release) && (
                       <ReleaseArchivedNotice
@@ -235,6 +267,8 @@ class ReleaseOverview extends AsyncView<Props> {
                         selection={selection}
                         yAxis={yAxis}
                         onYAxisChange={this.handleYAxisChange}
+                        eventType={eventType}
+                        onEventTypeChange={this.handleEventTypeChange}
                         router={router}
                         organization={organization}
                         hasHealthData={hasHealthData}
@@ -307,7 +341,7 @@ class ReleaseOverview extends AsyncView<Props> {
                       />
                     )}
                   </Side>
-                </StyledBody>
+                </Body>
               )}
             </ReleaseStatsRequest>
           );
@@ -398,7 +432,3 @@ function getTransactionsListSort(
 }
 
 export default withApi(withGlobalSelection(withOrganization(ReleaseOverview)));
-
-const StyledBody = styled(Body)`
-  margin: -${space(2)} -${space(4)};
-`;
