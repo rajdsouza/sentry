@@ -1,10 +1,11 @@
+import 'prism-sentry/index.css';
+
 import React from 'react';
 import {css} from '@emotion/core';
 import styled from '@emotion/styled';
 import {AnimatePresence, motion} from 'framer-motion';
 import PlatformIcon from 'platformicons';
 import PropTypes from 'prop-types';
-import 'prism-sentry/index.css';
 
 import {loadDocs} from 'app/actionCreators/projects';
 import {Client} from 'app/api';
