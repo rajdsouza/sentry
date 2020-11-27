@@ -20,9 +20,11 @@ import {getTermHelp} from '../performance/data';
 import {ChartContainer} from '../performance/styles';
 
 import ProjectApdexChart from './charts/projectApdexChart';
+import ProjectFailureChart from './charts/projectFailureChart';
 
 enum DisplayModes {
   APDEX = 'apdex',
+  FAILURE_RATE = 'failure_rate',
 }
 
 const DEFAULT_DISPLAY_MODE = DisplayModes.APDEX;
@@ -66,12 +68,21 @@ class ProjectCharts extends React.Component<Props, State> {
           ? getTermHelp(organization, 'apdex')
           : t('This view is only available with Performance Monitoring.'),
       },
+      {
+        value: DisplayModes.FAILURE_RATE,
+        label: t('Failure Rate'),
+        disabled: !hasPerformance,
+        tooltip: hasPerformance
+          ? getTermHelp(organization, 'failureRate')
+          : t('This view is only available with Performance Monitoring.'),
+      },
     ];
   }
 
   get summaryHeading() {
     switch (this.displayMode) {
       case DisplayModes.APDEX:
+      case DisplayModes.FAILURE_RATE:
       default:
         return t('Total Transactions');
     }
@@ -100,6 +111,15 @@ class ProjectCharts extends React.Component<Props, State> {
         <ChartContainer>
           {displayMode === DisplayModes.APDEX && (
             <ProjectApdexChart
+              api={api}
+              router={router}
+              organization={organization}
+              location={location}
+              onTotalValuesChange={this.handleTotalValuesChange}
+            />
+          )}
+          {displayMode === DisplayModes.FAILURE_RATE && (
+            <ProjectFailureChart
               api={api}
               router={router}
               organization={organization}
