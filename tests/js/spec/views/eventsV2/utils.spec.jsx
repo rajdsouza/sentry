@@ -283,6 +283,7 @@ describe('getExpandedResults()', function () {
       fields: [
         {field: 'last_seen()'}, // expect this to be transformed to timestamp
         {field: 'latest_event()'},
+        {field: 'failure_count()'}, // expect this to be transformed to transaction.status
         {field: 'title'},
         {field: 'avg(transaction.duration)'}, // expect this to be dropped
         {field: 'p50()'},
@@ -304,6 +305,7 @@ describe('getExpandedResults()', function () {
     result = getExpandedResults(view, {}, {});
     expect(result.fields).toEqual([
       {field: 'timestamp', width: -1},
+      {field: 'transaction.status', width: -1},
       {field: 'title'},
       {field: 'transaction.duration', width: -1},
       {field: 'custom_tag'},
