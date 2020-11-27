@@ -20,9 +20,11 @@ import {getTermHelp} from '../performance/data';
 import {ChartContainer} from '../performance/styles';
 
 import ProjectApdexChart from './charts/projectApdexChart';
+import ProjectTPMChart from './charts/projectTPMChart';
 
 enum DisplayModes {
   APDEX = 'apdex',
+  TPM = 'tpm',
 }
 
 const DEFAULT_DISPLAY_MODE = DisplayModes.APDEX;
@@ -66,6 +68,14 @@ class ProjectCharts extends React.Component<Props, State> {
           ? getTermHelp(organization, 'apdex')
           : t('This view is only available with Performance Monitoring.'),
       },
+      {
+        value: DisplayModes.TPM,
+        label: t('Transactions Per Minute'),
+        disabled: !hasPerformance,
+        tooltip: hasPerformance
+          ? getTermHelp(organization, 'tpm')
+          : t('This view is only available with Performance Monitoring.'),
+      },
     ];
   }
 
@@ -100,6 +110,15 @@ class ProjectCharts extends React.Component<Props, State> {
         <ChartContainer>
           {displayMode === DisplayModes.APDEX && (
             <ProjectApdexChart
+              api={api}
+              router={router}
+              organization={organization}
+              location={location}
+              onTotalValuesChange={this.handleTotalValuesChange}
+            />
+          )}
+          {displayMode === DisplayModes.TPM && (
+            <ProjectTPMChart
               api={api}
               router={router}
               organization={organization}
