@@ -35,6 +35,7 @@ import Issues from './issues';
 import OtherProjects from './otherProjects';
 import ProjectReleaseDetails from './projectReleaseDetails';
 import ReleaseArchivedNotice from './releaseArchivedNotice';
+import ReleaseDetails from './releaseDetails';
 import ReleaseStatsRequest from './releaseStatsRequest';
 import TotalCrashFreeUsers from './totalCrashFreeUsers';
 
@@ -320,6 +321,15 @@ class ReleaseOverview extends AsyncView<Props> {
                     </Feature>
                   </Main>
                   <Side>
+                    <ReleaseDetails
+                      location={location}
+                      organization={organization}
+                      dateCreated={release.dateCreated}
+                      lastDeploy={release.lastDeploy}
+                      newGroups={release.newGroups}
+                      project={project}
+                      releaseEventView={releaseEventView}
+                    />
                     <ProjectReleaseDetails
                       release={release}
                       releaseMeta={releaseMeta}
@@ -333,6 +343,14 @@ class ReleaseOverview extends AsyncView<Props> {
                         projectSlug={project.slug}
                       />
                     )}
+                    {deploys.length > 0 && (
+                      <Deploys
+                        version={version}
+                        orgSlug={organization.slug}
+                        deploys={deploys}
+                        projectId={project.id}
+                      />
+                    )}
                     {releaseMeta.projects.length > 1 && (
                       <OtherProjects
                         projects={releaseMeta.projects.filter(
@@ -344,14 +362,6 @@ class ReleaseOverview extends AsyncView<Props> {
                     {hasHealthData && (
                       <TotalCrashFreeUsers
                         crashFreeTimeBreakdown={crashFreeTimeBreakdown}
-                      />
-                    )}
-                    {deploys.length > 0 && (
-                      <Deploys
-                        version={version}
-                        orgSlug={organization.slug}
-                        deploys={deploys}
-                        projectId={project.id}
                       />
                     )}
                   </Side>

@@ -8,15 +8,15 @@ import TimeSince from 'app/components/timeSince';
 import Version from 'app/components/version';
 import {t, tn} from 'app/locale';
 import space from 'app/styles/space';
-import {ReleaseMeta, ReleaseWithHealth} from 'app/types';
+import {Organization, Project, ReleaseMeta, ReleaseWithHealth} from 'app/types';
 
 import {SectionHeading, Wrapper} from './styles';
 
 type Props = {
   release: ReleaseWithHealth;
   releaseMeta: ReleaseMeta;
-  orgSlug: string;
-  projectSlug: string;
+  orgSlug: Organization['slug'];
+  projectSlug: Project['slug'];
 };
 
 const ProjectReleaseDetails = ({release, releaseMeta, orgSlug, projectSlug}: Props) => {
